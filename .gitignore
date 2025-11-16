@@ -6,7 +6,6 @@ instance/app.db
 .flaskenv
 
 # large media
-*.mp4
 *.mov
 *.zip
 
