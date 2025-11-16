@@ -1,0 +1,239 @@
+{% extends 'base.html' %}
+{% block title %}Owner Requests | Hoosier Hub{% endblock %}
+{% block content %}
+
+<section class="container py-5">
+  <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center align-items-start gap-3 mb-4">
+    <div>
+      <div class="d-flex align-items-center gap-3 flex-wrap">
+        <h1 class="fw-bold text-danger mb-1"><i class="fas fa-inbox me-2"></i>Booking Requests Inbox</h1>
+        {% if pending_count %}
+        <span class="badge bg-danger-subtle text-danger fw-semibold px-3 py-2 shadow-sm">
+          {{ pending_count }} pending action{{ 's' if pending_count != 1 }}
+        </span>
+        {% endif %}
+      </div>
+      <p class="text-muted mb-0">Review conversations and respond to users requesting your resources.</p>
+    </div>
+    <a href="{{ url_for('resource_bp.list_resources') }}" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left me-2"></i>Back to Resources
+    </a>
+  </div>
+
+{% set conversations = conversations|default([]) %}
+{% if current_user.is_staff() %}
+{% if owns_resources and requests %}
+  <div class="accordion" id="ownerRequestsAccordion">
+    {% for req in requests %}
+    <div class="accordion-item mb-3 border-0 shadow-sm">
+      <h2 class="accordion-header" id="heading{{ req.id }}">
+        <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse"
+          data-bs-target="#collapse{{ req.id }}" aria-expanded="{{ 'true' if loop.first else 'false' }}"
+          aria-controls="collapse{{ req.id }}">
+          <div class="d-flex flex-column flex-lg-row w-100 justify-content-between align-items-lg-center">
+            <div>
+              <span class="badge bg-primary me-2">{{ req.resource.title }}</span>
+              <span class="fw-semibold">{{ req.requester.name }}</span>
+              <small class="text-muted ms-2">
+                {{ req.start_time.strftime('%b %d, %Y %I:%M %p') }} – {{ req.end_time.strftime('%b %d, %Y %I:%M %p') }}
+              </small>
+            </div>
+            <div class="d-flex align-items-center gap-2 mt-2 mt-lg-0">
+              <span class="badge {% if req.status == 'pending' %}bg-warning text-dark{% elif req.status == 'approved' %}bg-success{% elif req.status == 'denied' %}bg-danger{% else %}bg-secondary{% endif %}">
+                {{ req.status|capitalize }}
+              </span>
+              <small class="text-muted">Submitted {{ req.created_at.strftime('%b %d, %Y %I:%M %p') }}</small>
+            </div>
+          </div>
+        </button>
+      </h2>
+      <div id="collapse{{ req.id }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}"
+        aria-labelledby="heading{{ req.id }}" data-bs-parent="#ownerRequestsAccordion">
+        <div class="accordion-body">
+          <div class="row g-4">
+            <div class="col-lg-4">
+              <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                  <h5 class="card-title h6 text-uppercase text-muted mb-3">Request Details</h5>
+                  <p class="mb-2"><strong>Requester:</strong> {{ req.requester.name }} ({{ req.requester.email }})</p>
+                  <p class="mb-2"><strong>Resource:</strong> {{ req.resource.title }}</p>
+                  <p class="mb-2"><strong>Window:</strong><br>
+                    {{ req.start_time.strftime('%b %d, %Y %I:%M %p') }} – {{ req.end_time.strftime('%b %d, %Y %I:%M %p') }}
+                  </p>
+                  {% if req.purpose %}
+                  <p class="mb-0"><strong>Purpose:</strong><br>{{ req.purpose }}</p>
+                  {% endif %}
+                  {% if req.note %}
+                  <p class="mt-2 mb-0"><strong>Requester Note:</strong><br>{{ req.note }}</p>
+                  {% endif %}
+                  {% if req.status == 'pending' and req.booking %}
+                  <hr>
+                  <p class="text-muted small mb-3">Pending booking created. Approve or reject directly:</p>
+                  <form method="POST" action="{{ url_for('resource_bp.owner_approve_booking', booking_id=req.booking.id) }}"
+                    class="d-grid gap-2 mb-2">
+                    <input type="hidden" name="redirect_to" value="{{ url_for('resource_bp.owner_requests') }}">
+                    <button type="submit" class="btn btn-success btn-sm">
+                      <i class="fas fa-check me-1"></i>Approve Booking
+                    </button>
+                  </form>
+                  <form method="POST" action="{{ url_for('resource_bp.owner_reject_booking', booking_id=req.booking.id) }}">
+                    <input type="hidden" name="redirect_to" value="{{ url_for('resource_bp.owner_requests') }}">
+                    <div class="mb-2">
+                      <input type="text" name="reason" class="form-control form-control-sm" placeholder="Reason (optional)">
+                    </div>
+                    <button type="submit" class="btn btn-outline-danger btn-sm w-100">
+                      <i class="fas fa-times me-1"></i>Reject Booking
+                    </button>
+                  </form>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-8">
+              <div class="card border-0 shadow-sm h-100">
+                <div class="card-body d-flex flex-column">
+                  <h5 class="card-title h6 text-uppercase text-muted mb-3">Conversation</h5>
+                  {% set sorted_messages = req.messages|sort(attribute='created_at') %}
+                  <div class="message-thread flex-grow-1">
+                    {% if sorted_messages %}
+                    {% for message in sorted_messages %}
+                    <div class="mb-3">
+                      <div class="d-flex justify-content-between">
+                        <strong>
+                          {% if message.sender_id == current_user.id %}
+                          You
+                          {% elif message.sender_id == req.requester_id %}
+                          {{ req.requester.name }}
+                          {% else %}
+                          {{ message.sender.name }}
+                          {% endif %}
+                        </strong>
+                        <small class="text-muted">{{ message.created_at.strftime('%b %d, %Y %I:%M %p') }}</small>
+                      </div>
+                      <div class="mt-1 p-3 rounded-3 bg-light">{{ message.content }}</div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-muted">No messages yet. Start the conversation below.</p>
+                    {% endif %}
+                  </div>
+
+                  <form method="POST" action="{{ url_for('resource_bp.send_request_message', request_id=req.id) }}" class="mt-3">
+                    <div class="mb-3">
+                      <label class="form-label">Send a message</label>
+                      <textarea class="form-control" name="content" rows="3" placeholder="Write your reply..." required></textarea>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                      <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane me-2"></i>Send Reply
+                      </button>
+                      {% if current_user.is_admin() %}
+                      <a href="{{ url_for('admin.book_for_user', resource_id=req.resource_id, user_id=req.requester_id, start_time=req.start_time.strftime('%Y-%m-%dT%H:%M'), end_time=req.end_time.strftime('%Y-%m-%dT%H:%M'), purpose=req.purpose, request_id=req.id, return_to=url_for('resource_bp.owner_requests')) }}"
+                        class="btn btn-outline-success">
+                        <i class="fas fa-calendar-plus me-2"></i>Allocate Resource
+                      </a>
+                      {% endif %}
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% elif owns_resources %}
+  <div class="text-center py-5">
+    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+    <p class="text-muted mb-0">No booking requests yet. Once users request your resources, conversations will appear here.</p>
+  </div>
+  {% endif %}
+
+  {% if owns_resources %}
+  <hr class="my-5">
+  {% endif %}
+{% else %}
+  <div class="text-center py-4">
+    <div class="alert alert-info d-inline-flex align-items-center gap-2">
+      <i class="fas fa-info-circle fa-lg"></i>
+      Student-owned resources are always public, so you won't see booking approval requests here. Users can still reach out via direct messages on each resource page.
+    </div>
+  </div>
+{% endif %}
+  <div>
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center align-items-start gap-3 mb-3">
+      <div>
+        <h2 class="fw-bold text-primary mb-1"><i class="fas fa-comment-dots me-2"></i>Direct Messages</h2>
+        <p class="text-muted mb-0">Chat with users who have questions about your spaces.</p>
+      </div>
+    </div>
+
+    {% if conversations %}
+    <div class="row g-4">
+      {% for convo in conversations %}
+      <div class="col-12">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-0 d-flex flex-wrap justify-content-between align-items-center">
+            <div>
+                <span class="badge bg-secondary me-2">{{ convo.resource.title }}</span>
+                {% if convo.owner_id == current_user.id %}
+                <strong>{{ convo.requester.name }}</strong>
+                <small class="text-muted ms-2">{{ convo.requester.email }}</small>
+                {% else %}
+                <strong>{{ convo.owner.name }}</strong>
+                <small class="text-muted ms-2">{{ convo.owner.email }}</small>
+                {% endif %}
+            </div>
+            <small class="text-muted">Updated {{ convo.updated_at.strftime('%b %d, %Y %I:%M %p') }}</small>
+          </div>
+          <div class="card-body">
+            <div class="message-thread">
+              {% if convo.messages %}
+              {% for message in convo.messages %}
+              <div class="mb-3">
+                <div class="d-flex justify-content-between">
+                  <strong>
+                    {% if message.sender_id == current_user.id %}
+                    You
+                    {% else %}
+                    {{ message.sender.name }}
+                    {% endif %}
+                  </strong>
+                  <small class="text-muted">{{ message.created_at.strftime('%b %d, %Y %I:%M %p') }}</small>
+                </div>
+                <div class="mt-1 p-3 rounded-3 bg-light">{{ message.content }}</div>
+              </div>
+              {% endfor %}
+              {% else %}
+              <p class="text-muted">No messages yet.</p>
+              {% endif %}
+            </div>
+
+            <form method="POST" action="{{ url_for('resource_bp.reply_to_conversation', conversation_id=convo.id) }}" class="mt-3">
+              <input type="hidden" name="return_to" value="{{ request.path }}">
+              <div class="mb-3">
+                <label class="form-label">Send a reply</label>
+                <textarea class="form-control" name="content" rows="3" placeholder="Write your message..." required></textarea>
+              </div>
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-paper-plane me-2"></i>Send
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+      <i class="fas fa-comments fa-3x text-muted mb-3"></i>
+      <p class="text-muted mb-0">No direct messages yet. Once users reach out from a resource page, chats will appear here.</p>
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+{% endblock %}
+

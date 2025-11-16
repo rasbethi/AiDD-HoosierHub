@@ -1,0 +1,251 @@
+{% extends 'base.html' %}
+{% block title %}All Resources | Hoosier Hub{% endblock %}
+{% block content %}
+
+<!-- HERO SECTION -->
+<section class="hero2 text-center text-white">
+  <div class="container hero-content">
+    <h1 class="hero-title fade-up">Hoosier Hub</h1>
+    <p class="hero-subtitle fade-up-delay">
+      Reserve classrooms, labs, studios, and student spaces across IU — all approvals, waitlists, and requests in one
+      place.
+    </p>
+
+    {% if current_user.is_authenticated and not current_user.is_admin() %}
+    <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
+      <a href="{{ url_for('booking.dashboard') }}" class="btn btn-primary">
+        <i class="fas fa-calendar-check me-2"></i>View My Bookings
+      </a>
+      <a href="{{ url_for('resource_bp.create_resource') }}" class="btn btn-outline-light">
+        <i class="fas fa-plus-circle me-2"></i>Publish a Space
+      </a>
+    </div>
+    {% endif %}
+  </div>
+  <div class="wave"></div>
+</section>
+
+<!-- SEARCH & FILTER SECTION -->
+<section class="py-4 bg-white border-bottom">
+  <div class="container">
+    <form method="GET" action="{{ url_for('resource_bp.list_resources') }}" class="row g-3 align-items-end">
+
+      <div class="col-xl-3 col-lg-4 col-md-6">
+        <label class="form-label fw-semibold">Search</label>
+        <input type="text" name="search" class="form-control" placeholder="Search resources..."
+          value="{{ search_query or '' }}">
+      </div>
+
+      <div class="col-xl-2 col-lg-3 col-md-6">
+        <label class="form-label fw-semibold">Category</label>
+        <select name="category" class="form-select">
+          <option value="">All Categories</option>
+          {% for cat in categories %}
+          <option value="{{ cat }}" {% if cat==current_category %}selected{% endif %}>{{ cat }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-xl-2 col-lg-3 col-md-6">
+        <label class="form-label fw-semibold">Access Type</label>
+        <select name="access" class="form-select">
+          <option value="">All Types</option>
+          <option value="public" {% if current_access=='public' %}selected{% endif %}>Public</option>
+          <option value="restricted" {% if current_access=='restricted' %}selected{% endif %}>Restricted</option>
+        </select>
+      </div>
+
+      <div class="col-xl-2 col-lg-3 col-md-6">
+        <label class="form-label fw-semibold">Min Capacity</label>
+        <input type="number" name="min_capacity" class="form-control" min="1" placeholder="e.g., 5"
+          value="{{ min_capacity or '' }}">
+      </div>
+
+      <div class="col-12"></div>
+
+      <div class="col-xl-3 col-lg-4 col-md-6">
+        <label class="form-label fw-semibold">Available From</label>
+        <input type="datetime-local" name="start_time" class="form-control" value="{{ availability_start or '' }}">
+      </div>
+
+      <div class="col-xl-3 col-lg-4 col-md-6">
+        <label class="form-label fw-semibold">Available To</label>
+        <input type="datetime-local" name="end_time" class="form-control" value="{{ availability_end or '' }}">
+      </div>
+
+      <div class="col-xl-2 col-lg-3 col-md-6">
+        <label class="form-label fw-semibold">Sort By</label>
+        <select name="sort" class="form-select">
+          <option value="recent" {% if sort_option=='recent' %}selected{% endif %}>Most Recent</option>
+          <option value="most_booked" {% if sort_option=='most_booked' %}selected{% endif %}>Most Booked</option>
+          <option value="top_rated" {% if sort_option=='top_rated' %}selected{% endif %}>Top Rated</option>
+        </select>
+      </div>
+
+      <div class="col-md-3 col-sm-6">
+        <button type="submit" class="btn btn-primary w-100">
+          <i class="fas fa-search me-1"></i>Filter
+        </button>
+      </div>
+      <div class="col-md-3 col-sm-6">
+        <div class="form-check mt-4">
+          <input class="form-check-input" type="checkbox" id="advancedSearchToggle" name="advanced" value="1" {% if
+            advanced_mode %}checked{% endif %} {% if not google_search_enabled %}disabled{% endif %}>
+          <label class="form-check-label fw-semibold" for="advancedSearchToggle">
+            Boost with Google Search
+          </label>
+          {% if not google_search_enabled %}
+          <small class="text-muted d-block">Configure GOOGLE_SEARCH_API_KEY + GOOGLE_SEARCH_ENGINE_ID to enable.</small>
+          {% else %}
+          <small class="text-muted d-block">Expands matches with related keywords.</small>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if search_query or current_category or current_access or min_capacity or availability_start or availability_end
+      or (sort_option and sort_option != 'recent') %}
+      <div class="col-md-3 col-sm-6">
+        <a href="{{ url_for('resource_bp.list_resources') }}" class="btn btn-outline-secondary w-100">
+          <i class="fas fa-undo me-1"></i>Show All
+        </a>
+      </div>
+      {% endif %}
+    </form>
+  </div>
+</section>
+
+<!-- RESOURCES GRID -->
+<section class="featured-section" id="resources">
+  <div class="container">
+    <div class="section-header mb-4">
+      <h2 class="section-title">
+        {% if search_query %}
+        Search Results ({{ resources|length }})
+        {% elif current_category %}
+        {{ current_category }} Resources ({{ resources|length }})
+        {% else %}
+        All Resources ({{ resources|length }})
+        {% endif %}
+      </h2>
+    </div>
+
+    {% if resources %}
+    <div class="row g-4">
+      {% for resource in resources %}
+      <div class="col-md-4">
+        <div class="feature-card h-100">
+          <div class="card-img" style="background-image: url('{{ resource.image_url }}');"></div>
+          <div class="card-body d-flex flex-column">
+            {% set rating = resource.average_rating() %}
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <span class="badge bg-primary">{{ resource.category }}</span>
+              {% if resource.access_type == 'restricted' %}
+              <span class="badge bg-warning text-dark">
+                <i class="fas fa-lock me-1"></i>Restricted
+              </span>
+              {% else %}
+              <span class="badge bg-success">
+                <i class="fas fa-unlock me-1"></i>Public
+              </span>
+              {% endif %}
+            </div>
+            {% if rating >= 4.5 %}
+            <div class="mb-2">
+              <span class="badge bg-danger-subtle text-danger fw-semibold rounded-pill px-3">
+                <i class="fas fa-crown me-1"></i>Top Rated
+              </span>
+            </div>
+            {% endif %}
+
+            <h5 class="card-title">{{ resource.title }}</h5>
+            <p class="card-text text-muted small">
+              <i class="fas fa-map-marker-alt me-1"></i>{{ resource.location }}
+            </p>
+            <p class="card-text flex-grow-1">{{ resource.description[:100] }}...</p>
+
+            <div class="mt-auto">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <small class="text-muted">
+                  <i class="fas fa-users me-1"></i>Capacity: {{ resource.capacity }}
+                </small>
+                {% if resource.owner %}
+                <small class="text-muted">
+                  <i class="fas fa-user me-1"></i>{{ resource.owner.name }}
+                </small>
+                {% endif %}
+              </div>
+
+              {% if rating > 0 %}
+              <div class="mb-2">
+                <small class="text-warning">
+                  {% for i in range(rating|int) %}
+                  <i class="fas fa-star"></i>
+                  {% endfor %}
+                  {{ rating }}
+                </small>
+              </div>
+              {% endif %}
+
+              {% if current_user.is_authenticated and resource.owner_id == current_user.id %}
+              <div class="alert alert-secondary small text-muted mb-2 d-flex align-items-center gap-2">
+                <i class="fas fa-user-shield text-danger"></i>
+                <span>
+                  You own this resource. Use <strong>View Details</strong> to manage bookings and approvals.
+                </span>
+              </div>
+              {% endif %}
+
+              <a href="{{ url_for('resource_bp.resource_detail', resource_id=resource.id) }}"
+                class="btn btn-primary btn-card w-100">
+                View Details
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+      <i class="fas fa-search fa-3x text-muted mb-3"></i>
+      <h4 class="text-muted">No resources found</h4>
+      <p class="text-muted">Try adjusting your search or filters</p>
+      <a href="{{ url_for('resource_bp.list_resources') }}" class="btn btn-primary">
+        Clear Filters
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section class="testimonials text-center text-white" id="reviews">
+  <div class="container">
+    <h2 class="testimonials-title">What Hoosiers Are Saying</h2>
+    <div class="row g-3">
+      {% if spotlight_reviews %}
+      {% for review in spotlight_reviews %}
+      <div class="col-md-4">
+        <div class="quote rounded-4 shadow-lg bg-glass h-100">
+          <div class="mb-2 text-warning">
+            {% for i in range(review.rating) %}
+            <i class="fas fa-star"></i>
+            {% endfor %}
+          </div>
+          "{{ review.comment or 'Great experience using this space!' }}"<br><br>
+          <strong>– {{ review.reviewer.name }}, {{ review.resource.title }}</strong>
+        </div>
+      </div>
+      {% endfor %}
+      {% else %}
+      <div class="col-md-4 mx-auto">
+        <div class="quote rounded-4 shadow-lg bg-glass h-100">
+          No reviews yet. Book a space to become the first voice here!
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+{% endblock %}

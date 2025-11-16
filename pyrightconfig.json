@@ -1,0 +1,9 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/pyright/master/packages/pyright/schema/pyrightconfig.schema.json",
+  "venvPath": ".",
+  "venv": ".venv",
+  "typeCheckingMode": "off",
+  "reportMissingImports": false,
+  "reportMissingModuleSource": false
+}
+

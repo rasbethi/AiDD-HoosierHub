@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Site Pages · Hoosier Hub{% endblock %}
+
+{% block content %}
+<section class="py-4">
+  <div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <h1 class="h3 mb-1">Site Pages</h1>
+        <p class="text-muted mb-0">Update the About and Contact content seen by everyone.</p>
+      </div>
+      <a href="{{ url_for('admin.dashboard') }}" class="btn btn-light">
+        <i class="fas fa-arrow-left me-1"></i>Admin Console
+      </a>
+    </div>
+
+    <div class="row g-4">
+      {% for page in pages %}
+      <div class="col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body d-flex flex-column">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <div>
+                <h2 class="h5 mb-1">{{ page.title }}</h2>
+                {% if page.updated_at %}
+                <small class="text-muted">Updated {{ page.updated_at.strftime('%b %d, %Y %I:%M %p') }}</small>
+                {% endif %}
+              </div>
+            </div>
+
+            <form method="POST" class="d-flex flex-column flex-grow-1">
+              <input type="hidden" name="slug" value="{{ page.slug }}">
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Title</label>
+                <input type="text" name="title" class="form-control" value="{{ page.title }}" required>
+              </div>
+              <div class="mb-3 flex-grow-1 d-flex flex-column">
+                <label class="form-label fw-semibold">Body (HTML allowed)</label>
+                <textarea name="body" class="form-control flex-grow-1" rows="8"
+                  required>{{ page.body }}</textarea>
+                <small class="text-muted mt-1">
+                  {% if page.slug == 'contact' %}
+                  To power the contact cards, use optional key/value lines such as
+                  <code>email: support@campushub.edu</code>,
+                  <code>phone: (812) 555-0100</code>,
+                  <code>location: Luddy Hall</code>,
+                  <code>hours: Mon-Fri 8 AM - 6 PM</code>,
+                  <code>cta_text: Email Us</code>,
+                  <code>cta_href: mailto:support@campushub.edu</code>.
+                  Any other format will be rendered exactly as typed.
+                  {% else %}
+                  This content appears in the About section of the Discover page. You can include basic HTML.
+                  {% endif %}
+                </small>
+              </div>
+              <div class="text-end">
+                <button class="btn btn-crimson" type="submit">
+                  <i class="fas fa-save me-1"></i>Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}
+

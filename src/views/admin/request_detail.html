@@ -1,0 +1,197 @@
+{% extends 'base.html' %}
+{% block title %}Admin • Request #{{ booking_request.id }}{% endblock %}
+{% block content %}
+
+<section class="container py-5">
+  <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center align-items-start gap-3 mb-4">
+    <div>
+      <h1 class="fw-bold text-danger mb-1">
+        <i class="fas fa-comment-dots me-2"></i>Request #{{ booking_request.id }}
+      </h1>
+      <p class="text-muted mb-0">
+        Submitted {{ booking_request.created_at.strftime('%b %d, %Y %I:%M %p') }}
+      </p>
+    </div>
+    <a href="{{ url_for('admin.list_requests') }}" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left me-2"></i>Back to Requests
+    </a>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+            <div>
+              <h2 class="h5 mb-1">{{ booking_request.resource.title }}</h2>
+              <div class="text-muted small">
+                {{ booking_request.resource.location }} • {{ booking_request.resource.access_type|capitalize }}
+              </div>
+            </div>
+            <span class="badge fs-6
+              {% if booking_request.status == 'pending' %}bg-warning text-dark
+              {% elif booking_request.status == 'approved' %}bg-success
+              {% elif booking_request.status == 'denied' %}bg-danger
+              {% else %}bg-secondary
+              {% endif %}">
+              {{ booking_request.status|capitalize }}
+            </span>
+          </div>
+
+          <div class="row mb-4 gy-3">
+            <div class="col-md-6">
+              <label class="text-muted text-uppercase small mb-1">Requested By</label>
+              <div class="fw-semibold">{{ booking_request.requester.name }}</div>
+              <div class="small text-muted">{{ booking_request.requester.email }}</div>
+              <div class="small text-muted text-capitalize">{{ booking_request.requester.role }}</div>
+            </div>
+            <div class="col-md-6">
+              <label class="text-muted text-uppercase small mb-1">Requested Window</label>
+              <div>{{ booking_request.start_time.strftime('%b %d, %Y %I:%M %p') }}</div>
+              <div class="small text-muted">to {{ booking_request.end_time.strftime('%b %d, %Y %I:%M %p') }}</div>
+            </div>
+            {% if booking_request.purpose %}
+            <div class="col-12">
+              <label class="text-muted text-uppercase small mb-1">Purpose</label>
+              <p class="mb-0">{{ booking_request.purpose }}</p>
+            </div>
+            {% endif %}
+            {% if booking_request.note %}
+            <div class="col-12">
+              <label class="text-muted text-uppercase small mb-1">Requester Note</label>
+              <p class="mb-0">{{ booking_request.note }}</p>
+            </div>
+            {% endif %}
+          </div>
+
+          <div class="d-flex flex-wrap gap-2">
+            {% if booking_request.status == 'pending' %}
+            <a class="btn btn-primary"
+               href="{{ url_for(
+                  'admin.book_for_user',
+                  resource_id=booking_request.resource_id,
+                  user_id=booking_request.requester_id,
+                  start_time=booking_request.start_time.strftime('%Y-%m-%dT%H:%M'),
+                  end_time=booking_request.end_time.strftime('%Y-%m-%dT%H:%M'),
+                  purpose=booking_request.purpose,
+                  request_id=booking_request.id,
+                  return_to=url_for('admin.view_request', request_id=booking_request.id)
+               ) }}">
+              <i class="fas fa-calendar-check me-2"></i>Allocate Resource
+            </a>
+            <button class="btn btn-outline-danger" data-bs-toggle="collapse" data-bs-target="#denyRequestForm" aria-expanded="false" aria-controls="denyRequestForm">
+              <i class="fas fa-ban me-2"></i>Deny Request
+            </button>
+            {% endif %}
+
+            {% if booking_request.status in ['approved', 'denied'] %}
+            <form method="POST" action="{{ url_for('admin.decide_request', request_id=booking_request.id) }}">
+              <input type="hidden" name="action" value="close">
+              <button type="submit" class="btn btn-outline-secondary">
+                <i class="fas fa-folder-closed me-2"></i>Close Request
+              </button>
+            </form>
+            {% endif %}
+
+            {% if booking_request.status == 'closed' %}
+            <form method="POST" action="{{ url_for('admin.decide_request', request_id=booking_request.id) }}">
+              <input type="hidden" name="action" value="reopen">
+              <button type="submit" class="btn btn-outline-success">
+                <i class="fas fa-redo me-2"></i>Reopen
+              </button>
+            </form>
+            {% endif %}
+          </div>
+
+          {% if booking_request.decided_at and booking_request.decision_note %}
+          <div class="alert alert-secondary mt-4 mb-0">
+            <strong>Decision note:</strong>
+            <div class="mt-2 mb-0">{{ booking_request.decision_note }}</div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="collapse" id="denyRequestForm">
+        <div class="card border-0 shadow-sm mb-4">
+          <div class="card-body">
+            <h3 class="h6 text-uppercase text-muted mb-3"><i class="fas fa-ban me-2 text-danger"></i>Deny Request</h3>
+            <form method="POST" action="{{ url_for('admin.decide_request', request_id=booking_request.id) }}">
+              <div class="mb-3">
+                <label class="form-label">Reason for denial</label>
+                <textarea class="form-control" name="note" rows="3" placeholder="Let the requester know why this request can't be fulfilled"></textarea>
+              </div>
+              <button type="submit" name="action" value="deny" class="btn btn-danger">
+                <i class="fas fa-ban me-2"></i>Confirm Denial
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+          <h3 class="h6 text-uppercase text-muted mb-3"><i class="fas fa-history me-2 text-primary"></i>Activity Log</h3>
+          {% if messages %}
+          <div class="timeline">
+            {% for message in messages %}
+            <div class="timeline-item mb-4">
+              <div class="small text-muted">
+                {{ message.created_at.strftime('%b %d, %Y %I:%M %p') }}
+              </div>
+              <div class="fw-semibold">
+                {% if message.sender_id == booking_request.requester_id %}
+                  {{ booking_request.requester.name }}
+                {% else %}
+                  Admin • {{ message.sender.name }}
+                {% endif %}
+              </div>
+              <div class="mt-1">{{ message.content }}</div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p class="text-muted mb-0">No messages yet. Actions will appear here.</p>
+          {% endif %}
+        </div>
+      </div>
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+          <h3 class="h6 text-uppercase text-muted mb-3"><i class="fas fa-paper-plane me-2 text-primary"></i>Send Message</h3>
+          <form method="POST" action="{{ url_for('resource_bp.send_request_message', request_id=booking_request.id) }}">
+            <div class="mb-3">
+              <label class="form-label">Message</label>
+              <textarea class="form-control" name="content" rows="3" placeholder="Write a quick update..." required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">
+              <i class="fas fa-paper-plane me-2"></i>Send Message
+            </button>
+          </form>
+        </div>
+      </div>
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <h3 class="h6 text-uppercase text-muted mb-3"><i class="fas fa-info-circle me-2 text-secondary"></i>Quick Access</h3>
+          <div class="d-grid gap-2">
+            <a class="btn btn-outline-primary" href="{{ url_for('resource_bp.resource_detail', resource_id=booking_request.resource_id) }}">
+              <i class="fas fa-external-link-alt me-2"></i>View Resource
+            </a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('admin.book_for_user', resource_id=booking_request.resource_id) }}">
+              <i class="fas fa-calendar-plus me-2"></i>Open Booking Form
+            </a>
+            {% if booking_request.booking_id %}
+            <a class="btn btn-outline-success" href="{{ url_for('admin.view_booking', booking_id=booking_request.booking_id) }}">
+              <i class="fas fa-ticket-alt me-2"></i>View Booking
+            </a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% endblock %}
+

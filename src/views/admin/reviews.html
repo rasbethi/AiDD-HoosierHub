@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block title %}Manage Reviews{% endblock %}
+{% block content %}
+
+<section class="container py-5">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="fw-bold text-danger mb-1"><i class="fas fa-comments me-2"></i>Manage Reviews</h1>
+      <p class="text-muted mb-0">Moderate feedback left on campus resources.</p>
+    </div>
+    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+    </a>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Resource</th>
+              <th>Reviewer</th>
+              <th>Rating</th>
+              <th>Comment</th>
+              <th>Submitted</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for review in reviews %}
+            <tr>
+              <td>
+                <strong>{{ review.resource.title }}</strong>
+                <div class="text-muted small">{{ review.resource.category or 'General' }}</div>
+              </td>
+              <td>
+                {{ review.reviewer.name }}<br>
+                <small class="text-muted">{{ review.reviewer.email }}</small>
+              </td>
+              <td>
+                <span class="text-warning">
+                  {% for i in range(review.rating) %}
+                  <i class="fas fa-star"></i>
+                  {% endfor %}
+                </span>
+              </td>
+              <td>{{ review.comment or '—' }}</td>
+              <td>{{ review.created_at.strftime('%b %d, %Y') }}</td>
+              <td class="text-end">
+                <form method="POST" action="{{ url_for('admin.delete_review', review_id=review.id) }}"
+                      onsubmit="return confirm('Delete this review?');">
+                  <button type="submit" class="btn btn-sm btn-outline-danger">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% endblock %}
+

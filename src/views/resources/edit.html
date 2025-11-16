@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% block title %}Edit Resource{% endblock %}
+{% block content %}
+
+<section class="container py-5">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="fw-bold text-primary mb-1"><i class="fas fa-edit me-2"></i>Edit Resource</h1>
+      <p class="text-muted mb-0">Update the details of this resource.</p>
+    </div>
+    <a href="{{ url_for('admin.manage_resources') }}" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left me-2"></i>Back to Resources
+    </a>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      <form method="POST" action="{{ url_for('resource_bp.edit_resource', resource_id=resource.id) }}" class="row g-4">
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Title</label>
+          <input type="text" name="title" class="form-control" value="{{ resource.title }}" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Location</label>
+          <input type="text" name="location" class="form-control" value="{{ resource.location }}" required>
+        </div>
+
+        {% if current_user.is_admin() %}
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Assign Owner</label>
+          {% if owner_options %}
+          <select name="owner_id" class="form-select">
+            {% for owner in owner_options %}
+            <option value="{{ owner.id }}" {% if owner.id == resource.owner_id %}selected{% endif %}>
+              {{ owner.name }} ({{ owner.role|title }})
+            </option>
+            {% endfor %}
+          </select>
+          {% else %}
+          <div class="alert alert-warning mb-0">No eligible owners available.</div>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        {% set owner_is_student = resource.owner and resource.owner.role == 'student' %}
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Category</label>
+          {% if owner_is_student %}
+          <select name="category" class="form-select" required>
+            {% for label in basic_categories %}
+            <option value="{{ label }}" {% if resource.category == label %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          <small class="text-muted">Student-owned listings must remain basic community resources.</small>
+          {% else %}
+          <input type="text" name="category" class="form-control" value="{{ resource.category }}" list="categorySuggestionsEdit">
+          <datalist id="categorySuggestionsEdit">
+            {% for label in basic_categories %}
+            <option value="{{ label }}"></option>
+            {% endfor %}
+          </datalist>
+          {% endif %}
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-semibold">Capacity</label>
+          <input type="number" name="capacity" class="form-control" min="1" value="{{ resource.capacity }}" required>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-semibold">Available Slots</label>
+          <input type="number" name="available_slots" class="form-control" min="0" value="{{ resource.available_slots }}" required>
+        </div>
+
+        <div class="col-12">
+          <label class="form-label fw-semibold">Description</label>
+          <textarea name="description" rows="4" class="form-control">{{ resource.description }}</textarea>
+        </div>
+
+        {% if current_user.is_staff() or current_user.is_admin() %}
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Access Type</label>
+          <select name="access_type" class="form-select">
+            <option value="public" {% if resource.access_type == 'public' %}selected{% endif %}>Public</option>
+            <option value="restricted" {% if resource.access_type == 'restricted' %}selected{% endif %}>Restricted</option>
+          </select>
+        </div>
+        {% endif %}
+
+        <div class="col-md-8">
+          <label class="form-label fw-semibold">Image URL</label>
+          <input type="url" name="image_url" class="form-control" value="{{ resource.image_url }}">
+        </div>
+
+        <div class="col-12 d-flex gap-3">
+          <button type="submit" class="btn btn-primary px-4">
+            <i class="fas fa-save me-2"></i>Save Changes
+          </button>
+          <a href="{{ url_for('resource_bp.resource_detail', resource_id=resource.id) }}" class="btn btn-outline-secondary px-4">
+            Cancel
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+
+{% endblock %}
+

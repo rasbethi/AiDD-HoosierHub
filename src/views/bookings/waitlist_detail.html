@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% block title %}Waitlist Detail | Hoosier Hub{% endblock %}
+
+{% block content %}
+<section class="container py-5">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="fw-bold text-danger mb-1"><i class="fas fa-user-clock me-2"></i>Waitlist Entry</h2>
+      <p class="text-muted mb-0">Tracking for {{ entry.resource.title }}</p>
+    </div>
+    <a href="{{ url_for('booking.dashboard') }}" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left me-2"></i>Back to My Bookings
+    </a>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-7">
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h5 class="fw-bold mb-1">{{ entry.resource.title }}</h5>
+              <p class="text-muted mb-1">{{ entry.resource.location or 'On campus' }}</p>
+            </div>
+            <span class="badge bg-secondary text-uppercase">{{ (entry.status or 'waiting')|capitalize }}</span>
+          </div>
+          <div class="row g-3 mt-2">
+            <div class="col-md-6">
+              <p class="text-muted mb-1"><strong>Requested Start</strong></p>
+              <p>{{ entry.start_time.strftime('%b %d, %Y %I:%M %p') if entry.start_time else '—' }}</p>
+            </div>
+            <div class="col-md-6">
+              <p class="text-muted mb-1"><strong>Requested End</strong></p>
+              <p>{{ entry.end_time.strftime('%b %d, %Y %I:%M %p') if entry.end_time else '—' }}</p>
+            </div>
+          </div>
+          {% if entry.purpose %}
+          <hr>
+          <p class="text-muted mb-1"><strong>Purpose</strong></p>
+          <p>{{ entry.purpose }}</p>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if can_edit %}
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <h5 class="fw-bold mb-3"><i class="fas fa-edit me-2 text-danger"></i>Update Requested Slot</h5>
+          <p class="text-muted">Change the target time for this waitlist entry (e.g., 7:00 PM – 8:00 PM) so admins know exactly when to schedule it.</p>
+          <form method="POST" class="row g-3">
+            <div class="col-md-6">
+              <label for="start_time" class="form-label fw-semibold">Start</label>
+              <input type="datetime-local" id="start_time" name="start_time" class="form-control"
+                     value="{{ entry.start_time.strftime('%Y-%m-%dT%H:%M') if entry.start_time else '' }}" required>
+            </div>
+            <div class="col-md-6">
+              <label for="end_time" class="form-label fw-semibold">End</label>
+              <input type="datetime-local" id="end_time" name="end_time" class="form-control"
+                     value="{{ entry.end_time.strftime('%Y-%m-%dT%H:%M') if entry.end_time else '' }}" required>
+            </div>
+            <div class="col-12">
+              <label for="purpose" class="form-label fw-semibold">Purpose (optional)</label>
+              <textarea id="purpose" name="purpose" rows="2" class="form-control" placeholder="Meeting, tutoring, etc.">{{ entry.purpose or '' }}</textarea>
+            </div>
+            <div class="col-12 d-flex gap-2">
+              <button type="submit" class="btn btn-danger">
+                <i class="fas fa-save me-2"></i>Save Slot
+              </button>
+              <a href="{{ url_for('booking.waitlist_detail', entry_id=entry.id) }}" class="btn btn-outline-secondary">Reset</a>
+            </div>
+          </form>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="col-lg-5">
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+          <h5 class="fw-bold mb-3"><i class="fas fa-user me-2 text-primary"></i>Requested By</h5>
+          <p class="mb-1">{{ entry.user.name }}</p>
+          <p class="text-muted mb-3">{{ entry.user.email }}</p>
+          <p class="text-muted mb-1"><strong>Queue Position</strong></p>
+          <p>Position {{ entry.position or '—' }}</p>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <h5 class="fw-bold mb-3"><i class="fas fa-info-circle me-2 text-primary"></i>Status History</h5>
+          <p class="text-muted mb-1">Created</p>
+          <p>{{ entry.created_at.strftime('%b %d, %Y %I:%M %p') }}</p>
+          <p class="text-muted mb-0">
+            {% if entry.notified %}
+            Notification sent when a slot opened.
+            {% else %}
+            Awaiting slot availability notification.
+            {% endif %}
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

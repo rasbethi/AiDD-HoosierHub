@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+{% block title %}Manage Resources{% endblock %}
+{% block content %}
+
+<section class="container py-5">
+  <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center align-items-start gap-3 mb-4">
+    <div>
+      <h1 class="fw-bold text-danger mb-1"><i class="fas fa-th-large me-2"></i>Manage Resources</h1>
+      <p class="text-muted mb-0">View, edit, or delete campus resources.</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <a href="{{ url_for('resource_bp.create_resource') }}" class="btn btn-success">
+        <i class="fas fa-plus-circle me-2"></i>Add Resource
+      </a>
+      <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+      </a>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Title</th>
+              <th>Owner</th>
+              <th>Category</th>
+              <th>Access</th>
+              <th>Capacity</th>
+              <th>Status</th>
+              <th>Created</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for resource in resources %}
+            <tr>
+              <td>
+                <strong>{{ resource.title }}</strong><br>
+                <small class="text-muted">{{ resource.location }}</small>
+              </td>
+              <td>
+                {% if resource.owner %}
+                  {{ resource.owner.name }}<br>
+                  <small class="text-muted">{{ resource.owner.email }}</small>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+              <td>{{ resource.category or '—' }}</td>
+              <td>
+                <span class="badge {% if resource.access_type == 'public' %}bg-success{% else %}bg-warning text-dark{% endif %}">
+                  {{ resource.access_type|capitalize }}
+                </span>
+              </td>
+              <td>{{ resource.capacity }}</td>
+              <td>
+                <div class="d-flex align-items-center gap-3">
+                  <span class="badge text-uppercase fw-semibold px-3 py-2 {% if resource.status == resource.STATUS_PUBLISHED %}bg-success text-white{% elif resource.status == resource.STATUS_DRAFT %}bg-secondary text-white{% else %}bg-dark text-white{% endif %}">
+                    {{ resource.status|replace('_', ' ') }}
+                  </span>
+                  <form method="POST" action="{{ url_for('admin.update_resource_status', resource_id=resource.id) }}">
+                    <select name="status" class="form-select form-select-sm" style="min-width: 130px;" onchange="this.form.submit()">
+                      <option value="{{ resource.STATUS_DRAFT }}" {% if resource.is_draft %}selected{% endif %}>Draft</option>
+                      <option value="{{ resource.STATUS_PUBLISHED }}" {% if resource.is_published %}selected{% endif %}>Published</option>
+                      <option value="{{ resource.STATUS_ARCHIVED }}" {% if resource.is_archived %}selected{% endif %}>Archived</option>
+                    </select>
+                  </form>
+                </div>
+              </td>
+              <td>{{ resource.created_at.strftime('%b %d, %Y') }}</td>
+              <td class="text-end">
+                <div class="btn-group btn-group-sm">
+                  <a href="{{ url_for('resource_bp.resource_detail', resource_id=resource.id) }}" class="btn btn-outline-primary" title="View Details">
+                    <i class="fas fa-eye"></i>
+                  </a>
+                  <a href="{{ url_for('admin.resource_schedule', resource_id=resource.id) }}" class="btn btn-outline-secondary" title="Schedule & Waitlist">
+                    <i class="fas fa-calendar-alt"></i>
+                  </a>
+                  <a href="{{ url_for('resource_bp.edit_resource', resource_id=resource.id) }}" class="btn btn-outline-info" title="Edit Resource">
+                    <i class="fas fa-edit"></i>
+                  </a>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% endblock %}
+

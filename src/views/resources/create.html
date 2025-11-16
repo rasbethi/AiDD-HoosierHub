@@ -1,0 +1,216 @@
+{% extends 'base.html' %}
+{% block title %}Add Resource{% endblock %}
+{% block content %}
+
+<section class="container py-5">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="fw-bold text-danger mb-1"><i class="fas fa-plus-circle me-2"></i>Add Resource</h1>
+      <p class="text-muted mb-0">Publish a new study room, lab, or equipment item.</p>
+    </div>
+    <a href="{{ url_for('admin.manage_resources') }}" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left me-2"></i>Back to Resources
+    </a>
+  </div>
+
+  {% if current_user.role == 'student' %}
+  <div class="alert alert-warning d-flex align-items-center gap-3">
+    <i class="fas fa-info-circle fa-lg"></i>
+    Students can only create basic community resources (study groups, peer tutoring, club resources, case prep rooms, etc.).
+    Choose from the preset categories below; admins will review and publish it.
+  </div>
+  {% elif current_user.is_staff() %}
+  <div class="alert alert-info d-flex align-items-center gap-3">
+    <i class="fas fa-lightbulb fa-lg"></i>
+    Staff can create official campus resources. Select one of the suggested categories or type a new one to add it to the list.
+  </div>
+  {% endif %}
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      <form method="POST" action="{{ url_for('resource_bp.create_resource') }}" class="row g-4">
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Title</label>
+          <input type="text" name="title" class="form-control" placeholder="e.g., Quiet Study Room A" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Location</label>
+          <input type="text" name="location" class="form-control" placeholder="Building, Room" required>
+        </div>
+
+        {% if current_user.is_admin() %}
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Assign Owner</label>
+          {% if owner_options %}
+          <select name="owner_id" class="form-select" required>
+            <option value="">Select owner</option>
+            {% for owner in owner_options %}
+            <option value="{{ owner.id }}">{{ owner.name }} ({{ owner.role|title }})</option>
+            {% endfor %}
+          </select>
+          <small class="text-muted">Admins must assign a student or staff owner.</small>
+          {% else %}
+          <div class="alert alert-warning mb-0">Add a student or staff account before creating resources.</div>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        {% set chosen_category = selected_category or request.form.get('category') %}
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Category</label>
+          {% if current_user.role == 'student' %}
+          <select name="category" class="form-select" required>
+            {% for label in basic_categories %}
+            <option value="{{ label }}" {% if (chosen_category or basic_categories[0]) == label %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          <small class="text-muted">Students can create study groups, peer tutoring pods, club resources, or case prep rooms.</small>
+          {% else %}
+          <input type="text" name="category" class="form-control" placeholder="Study Room, Lab, Equipment"
+            value="{{ chosen_category or '' }}" list="categorySuggestions">
+          <datalist id="categorySuggestions">
+            {% for label in basic_categories %}
+            <option value="{{ label }}"></option>
+            {% endfor %}
+          </datalist>
+          <small class="text-muted">Staff can enter official categories (labs, equipment, rooms, etc.).</small>
+          {% endif %}
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-semibold">Capacity</label>
+          <input type="number" name="capacity" class="form-control" min="1" value="4" required>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-semibold">Available Slots</label>
+          <input type="number" name="available_slots" class="form-control" min="1" value="4" required>
+        </div>
+
+        <div class="col-md-12">
+          <label class="form-label fw-semibold">Description</label>
+          <textarea name="description" rows="4" class="form-control"
+            placeholder="Provide details, requirements, or usage notes."></textarea>
+        </div>
+
+        {% if current_user.is_staff() or current_user.is_admin() %}
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Access Type</label>
+          <select name="access_type" class="form-select">
+            <option value="public">Public</option>
+            <option value="restricted">Restricted</option>
+          </select>
+        </div>
+        {% endif %}
+
+        <div class="col-md-8">
+          <label class="form-label fw-semibold">Image URL</label>
+          <input type="url" name="image_url" id="imageUrlInput" class="form-control" placeholder="https://">
+          <small class="text-muted">Paste a custom link or pick from the stock gallery below.</small>
+        </div>
+
+        <div class="col-12">
+          <div class="card border-0 shadow-sm">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="card-title mb-0">
+                  <i class="fas fa-images me-2 text-danger"></i>Stock Image Gallery
+                </h5>
+                <small class="text-muted">Click any thumbnail to use it instantly.</small>
+              </div>
+              {% if stock_image_groups %}
+              <div class="stock-gallery">
+                {% for group in stock_image_groups %}
+                <div class="mb-3">
+                  <h6 class="text-muted fw-semibold">{{ group.label }}</h6>
+                  <div class="d-flex flex-wrap gap-3">
+                    {% for image in group.images %}
+                    <button type="button" class="stock-image-card" data-stock-image="{{ image }}">
+                      <span class="image-check"><i class="fas fa-check"></i></span>
+                      <img src="{{ image }}" alt="Stock image option">
+                    </button>
+                    {% endfor %}
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+              {% else %}
+              <p class="text-muted mb-0">No stock images configured yet.</p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 d-flex gap-3">
+          <button type="submit" class="btn btn-primary px-4">
+            <i class="fas fa-check me-2"></i>Create Resource
+          </button>
+          <a href="{{ url_for('admin.manage_resources') }}" class="btn btn-outline-secondary px-4">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<style>
+  .stock-image-card {
+    border: 2px solid transparent;
+    border-radius: 14px;
+    padding: 0;
+    overflow: hidden;
+    background: transparent;
+    position: relative;
+    width: 180px;
+    height: 120px;
+    cursor: pointer;
+    transition: transform 0.2s, border-color 0.2s;
+  }
+
+  .stock-image-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .stock-image-card .image-check {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(220, 53, 69, 0.9);
+    color: #fff;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .stock-image-card.active {
+    border-color: #dc3545;
+    transform: translateY(-2px);
+  }
+
+  .stock-image-card.active .image-check {
+    opacity: 1;
+  }
+</style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const imageInput = document.getElementById('imageUrlInput');
+    const cards = document.querySelectorAll('.stock-image-card');
+
+    cards.forEach(card => {
+      card.addEventListener('click', () => {
+        const url = card.dataset.stockImage;
+        imageInput.value = url;
+        cards.forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+      });
+    });
+  });
+</script>
+
+{% endblock %}
+

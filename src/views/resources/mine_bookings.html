@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% block title %}My Resource Bookings{% endblock %}
+{% block content %}
+
+<section class="container py-5">
+  <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center align-items-start gap-3 mb-4">
+    <div>
+      <h1 class="fw-bold text-danger mb-1"><i class="fas fa-calendar-check me-2"></i>Bookings for My Resources</h1>
+      <p class="text-muted mb-0">Track who is using the resources you manage.</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <a href="{{ url_for('resource_bp.owner_resources') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-layer-group me-2"></i>View My Resources
+      </a>
+    </div>
+  </div>
+
+  {% if bookings %}
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Resource</th>
+              <th>Booked By</th>
+              <th>Start</th>
+              <th>End</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for booking in bookings %}
+            <tr>
+              <td>
+                <div class="fw-semibold">{{ booking.resource.title }}</div>
+                <small class="text-muted">{{ booking.resource.location }}</small>
+              </td>
+              <td>
+                <div class="fw-semibold">{{ booking.user.name }}</div>
+                <small class="text-muted">{{ booking.user.email }}</small>
+              </td>
+              <td>{{ booking.start_time.strftime('%b %d, %Y %I:%M %p') }}</td>
+              <td>{{ booking.end_time.strftime('%b %d, %Y %I:%M %p') }}</td>
+              <td>
+                <span class="badge
+                  {% if booking.status == 'approved' %}bg-success
+                  {% elif booking.status == 'pending' %}bg-warning text-dark
+                  {% elif booking.status == 'rejected' %}bg-danger
+                  {% else %}bg-secondary
+                  {% endif %}">
+                  {{ booking.status|capitalize }}
+                </span>
+              </td>
+              <td class="text-end">
+                <a href="{{ url_for('resource_bp.resource_detail', resource_id=booking.resource_id) }}" class="btn btn-sm btn-outline-secondary">
+                  <i class="fas fa-external-link-alt me-1"></i>Resource
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="text-center py-5">
+    <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+    <p class="text-muted mb-0">No bookings yet for your resources.</p>
+  </div>
+  {% endif %}
+</section>
+
+{% endblock %}
+

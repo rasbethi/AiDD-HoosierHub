@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+{% block title %}My Bookings{% endblock %}
+
+{% block content %}
+<section class="container py-5">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="fw-bold text-danger">
+        {% if view_mode == 'all' %}
+          All Bookings
+        {% else %}
+          My Bookings
+        {% endif %}
+      </h2>
+      {% if view_mode == 'all' %}
+      <p class="text-muted mb-0">Viewing every booking made across the platform.</p>
+      {% endif %}
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+    <a href="{{ url_for('resource_bp.list_resources') }}" class="btn btn-outline-danger">Book a Resource</a>
+      <a href="{{ url_for('booking.export_ics') }}" class="btn btn-outline-primary">
+        <i class="fas fa-calendar-plus me-2"></i>Download iCal
+      </a>
+    </div>
+  </div>
+
+  {% if bookings %}
+  <div class="row g-4">
+    {% for booking in bookings %}
+    <div class="col-lg-6">
+      <div class="card shadow-sm border-0 h-100 booking-card">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h5 class="fw-bold mb-1">{{ booking.resource.title }}</h5>
+              <p class="text-muted mb-1">
+                <i class="fa fa-calendar me-1 text-danger"></i>
+                {{ booking.start_time.strftime('%b %d, %Y') }}
+              </p>
+              <p class="text-muted mb-2">
+                <i class="fa fa-clock me-l text-danger"></i>
+                {{ booking.start_time.strftime('%I:%M %p') }} – {{ booking.end_time.strftime('%I:%M %p') }}
+              </p>
+              {% if view_mode == 'all' %}
+              <p class="text-muted mb-1">
+                <i class="fas fa-user me-1 text-danger"></i>
+                {{ booking.user.name }} <span class="text-muted">({{ booking.user.email }})</span>
+              </p>
+              {% endif %}
+            </div>
+            <a class="btn btn-sm btn-outline-primary"
+              href="{{ url_for('booking.detail', booking_id=booking.id) }}">
+              Details
+            </a>
+          </div>
+          <span class="badge {% if booking.status|lower == 'approved' %}bg-success{% elif booking.status|lower == 'pending' %}
+            bg-warning text-dark{% else %}bg-danger{% endif %}">
+            {{ booking.status|capitalize }}
+          </span>
+          {% if booking.user_id == current_user.id and booking.status|lower not in ['cancelled', 'rejected'] %}
+          <form method="POST" action="{{ url_for('booking.cancel_my_booking', booking_id=booking.id) }}" class="mt-3">
+            <input type="hidden" name="return_to" value="{{ request.full_path }}">
+            <button type="submit" class="btn btn-sm btn-outline-danger">
+              <i class="fas fa-times me-1"></i>Cancel Booking
+            </button>
+          </form>
+          {% endif %}
+          {% if booking.booked_by_admin %}
+          <small class="text-muted d-block mt-2">
+            <i class="fas fa-user-shield me-1 text-danger"></i>Admin booked on your behalf
+          </small>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="text-center py-5">
+    <h5 class="text-muted">You have no active bookings yet.</h5>
+    {% if view_mode != 'all' %}
+    <a href="{{ url_for('resource_bp.list_resources') }}" class="btn btn-danger mt-3">Explore Resources</a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if view_mode != 'all' %}
+  <hr class="my-5">
+  <div>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h4 class="fw-bold text-primary mb-0"><i class="fas fa-stream me-2"></i>Waitlisted Requests</h4>
+      {% if waitlist_entries %}
+      <span class="badge bg-secondary">{{ waitlist_entries|length }} active</span>
+      {% endif %}
+    </div>
+    {% if waitlist_entries %}
+    <div class="row g-3">
+      {% for entry in waitlist_entries %}
+      <div class="col-lg-4 col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body d-flex flex-column">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <div>
+                <h5 class="fw-semibold mb-1">{{ entry.resource.title }}</h5>
+                <p class="text-muted mb-1">{{ entry.resource.location or 'On campus' }}</p>
+              </div>
+              <a class="btn btn-sm btn-outline-primary"
+                href="{{ url_for('booking.waitlist_detail', entry_id=entry.id) }}">
+                Details
+              </a>
+            </div>
+            {% if entry.start_time %}
+            <p class="text-muted mb-1">
+              <i class="fas fa-clock me-1 text-danger"></i>
+              {{ entry.start_time.strftime('%b %d, %Y %I:%M %p') }}
+              {% if entry.end_time %} – {{ entry.end_time.strftime('%I:%M %p') }}{% endif %}
+            </p>
+            {% endif %}
+            <span class="badge bg-secondary text-uppercase align-self-start mb-2">
+              {{ (entry.status or 'waiting')|capitalize }} · Position {{ entry.position or '—' }}
+            </span>
+            <p class="text-muted small mb-1">
+              Added {{ entry.created_at.strftime('%b %d, %Y %I:%M %p') }}
+            </p>
+            {% if entry.purpose %}
+            <p class="text-muted small mb-0">
+              <strong>Purpose:</strong> {{ entry.purpose }}
+            </p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-muted fst-italic">You're not on any waitlists right now.</div>
+    {% endif %}
+  </div>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<style>
+.booking-card {
+    transition: all 0.2s ease-in-out;
+    border-radius: 15px;
+  }
+
+  .booking-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  }
+</style>
+{% endblock %}

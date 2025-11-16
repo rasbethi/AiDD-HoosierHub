@@ -1,0 +1,430 @@
+{% extends 'base.html' %}
+{% block title %}Book for User | Admin{% endblock %}
+{% block content %}
+{% set waitlist_mode = request.args.get('waitlist') %}
+{% set wait_user_id = request.args.get('user_id') %}
+{% set wait_start = request.args.get('start_time') %}
+{% set wait_end = request.args.get('end_time') %}
+{% set wait_purpose = request.args.get('purpose') %}
+
+<div class="admin-container">
+    <div class="container py-4">
+        <!-- Page Header -->
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center align-items-start gap-3 mb-4">
+            <div>
+                <h1 class="admin-title mb-2">
+                    <i class="fas fa-calendar-plus me-2"></i>Book Resource for User
+                </h1>
+                <p class="text-muted mb-0">Admin can book any resource for students or staff without approval</p>
+            </div>
+            <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+            </a>
+        </div>
+
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body p-4">
+                        <form method="POST" action="{{ url_for('admin.book_for_user', return_to=return_to) }}">
+
+                            <input type="hidden" name="return_to" value="{{ return_to }}">
+                            {% if request_id %}
+                            <input type="hidden" name="request_id" value="{{ request_id }}">
+                            <div class="alert alert-warning border-0 d-flex align-items-center gap-2 mb-4">
+                                <i class="fas fa-link"></i>
+                                <div>
+                                    Booking linked to <strong>Request #{{ request_id }}</strong>. Completing this form will update the request automatically.
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <!-- Select User -->
+                            <div class="mb-4">
+                                <label for="user_id" class="form-label fw-semibold">
+                                    <i class="fas fa-user me-2 text-primary"></i>Select User
+                                </label>
+                                <select class="form-select form-select-lg" id="user_id" name="user_id" required
+                                    onchange="updateUserInfo()">
+                                    <option value="">-- Choose a user --</option>
+                                    {% for user in users %}
+                                    <option value="{{ user.id }}" data-name="{{ user.name }}"
+                                        data-email="{{ user.email }}" data-role="{{ user.role }}"
+                                        {% if wait_user_id and (wait_user_id|int == user.id) %}selected{% endif %}>
+                                        {{ user.name }} ({{ user.email }}) - {{ user.role|capitalize }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+
+                                <!-- User Info Display -->
+                                <div id="userInfo" class="mt-3 p-3 bg-light rounded" style="display: none;">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <small class="text-muted">Name:</small>
+                                            <p class="mb-0 fw-semibold" id="userName"></p>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <small class="text-muted">Email:</small>
+                                            <p class="mb-0" id="userEmail"></p>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <small class="text-muted">Role:</small>
+                                            <p class="mb-0"><span class="badge bg-primary" id="userRole"></span></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Select Resource -->
+                            <div class="mb-4">
+                                <label for="resource_id" class="form-label fw-semibold">
+                                    <i class="fas fa-th-large me-2 text-success"></i>Select Resource
+                                </label>
+                                <select class="form-select form-select-lg" id="resource_id" name="resource_id" required
+                                    onchange="updateResourceInfo()">
+                                    <option value="">-- Choose a resource --</option>
+                                    {% for resource in resources %}
+                                    <option value="{{ resource.id }}"
+                                        data-title="{{ resource.title }}"
+                                        data-location="{{ resource.location }}" data-capacity="{{ resource.capacity }}"
+                                        data-available="{{ resource.get_available_slots() }}"
+                                        data-type="{{ resource.access_type }}"
+                                        {% if selected_resource_id and resource.id == selected_resource_id %}selected{% endif %}>
+                                        {{ resource.title }} - {{ resource.location }}
+                                        ({{ resource.get_available_slots() }} slots available)
+                                    </option>
+                                    {% endfor %}
+                                </select>
+
+                                <!-- Resource Info Display -->
+                                <div id="resourceInfo" class="mt-3 p-3 bg-light rounded" style="display: none;">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <small class="text-muted">Location:</small>
+                                            <p class="mb-0" id="resourceLocation"></p>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <small class="text-muted">Capacity:</small>
+                                            <p class="mb-0" id="resourceCapacity"></p>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <small class="text-muted">Available:</small>
+                                            <p class="mb-0 text-success fw-semibold" id="resourceAvailable"></p>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <small class="text-muted">Access:</small>
+                                            <p class="mb-0"><span class="badge bg-warning" id="resourceType"></span></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {% if slot_days %}
+                            <div class="quick-slots mb-4">
+                                <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center align-items-start gap-2 mb-2">
+                                    <div>
+                                        <strong>Availability (next 3 days)</strong>
+                                        <p class="text-muted small mb-0">Select a slot to auto-fill the booking form.</p>
+                                    </div>
+                                    <div class="slot-legend d-flex flex-wrap gap-2">
+                                        <span class="legend-pill slot-available">Available</span>
+                                        <span class="legend-pill slot-limited">Limited</span>
+                                        <span class="legend-pill slot-full">Full</span>
+                                        <span class="legend-pill slot-downtime">Downtime</span>
+                                    </div>
+                                </div>
+                                {% for day in slot_days %}
+                                <div class="slot-day mb-3">
+                                    <div class="slot-day-label">{{ day.date_label }}</div>
+                                    <div class="slot-pills">
+                                        {% for slot in day.slots %}
+                                        <button type="button" class="slot-pill slot-{{ slot.status }}"
+                                            data-start="{{ slot.start_iso }}" data-end="{{ slot.end_iso }}"
+                                            data-status="{{ slot.status }}" data-hint="{{ slot.hint }}"
+                                            title="{{ slot.hint }}"
+                                            {% if slot.status == 'downtime' %}disabled{% endif %}>
+                                            {{ slot.label }}
+                                        </button>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <div id="slotSelectionInfo" class="alert alert-secondary d-none"></div>
+                            {% endif %}
+
+                            <!-- Date & Time -->
+                            <div class="row mb-4">
+                                <div class="col-md-6">
+                                    <label for="start_time" class="form-label fw-semibold">
+                                        <i class="fas fa-clock me-2 text-info"></i>Start Date & Time
+                                    </label>
+                                    <input type="datetime-local" class="form-control form-control-lg" id="start_time"
+                                        name="start_time" value="{{ wait_start or '' }}" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="end_time" class="form-label fw-semibold">
+                                        <i class="fas fa-clock me-2 text-danger"></i>End Date & Time
+                                    </label>
+                                    <input type="datetime-local" class="form-control form-control-lg" id="end_time"
+                                        name="end_time" value="{{ wait_end or '' }}" required>
+                                </div>
+                            </div>
+
+                            <!-- Purpose -->
+                            <div class="mb-4">
+                                <label for="purpose" class="form-label fw-semibold">
+                                    <i class="fas fa-comment me-2 text-warning"></i>Purpose / Notes (Optional)
+                                </label>
+                                <textarea class="form-control" id="purpose" name="purpose" rows="3"
+                                    placeholder="e.g., Research project, class assignment, meeting...">{{ wait_purpose or '' }}</textarea>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label fw-semibold">
+                                    <i class="fas fa-redo me-2 text-primary"></i>Repeat Booking
+                                </label>
+                                <div class="input-group">
+                                    <select class="form-select" name="recurrence">
+                                        <option value="none">Do not repeat</option>
+                                        <option value="daily">Daily</option>
+                                        <option value="weekly">Weekly</option>
+                                    </select>
+                                    <input type="number" class="form-control" name="recurrence_count" min="1" max="10" value="1">
+                                </div>
+                                <small class="text-muted">Repeats include this booking. Maximum of 10 occurrences.</small>
+                            </div>
+
+                            <!-- Alert -->
+                            <div class="alert alert-info border-0 mb-4 d-none" id="policyAlert">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <span id="policyText">This booking will be automatically approved and the user will receive a notification.</span>
+                            </div>
+
+                            <!-- Submit Buttons -->
+                            <div class="d-grid gap-3">
+                                {% if waitlist_mode %}
+                                <div class="alert alert-warning border-0 mb-0">
+                                    <div class="d-flex flex-column flex-md-row align-items-md-center gap-2">
+                                        <i class="fas fa-user-clock fa-lg"></i>
+                                        <div>
+                                            <strong>This slot is full.</strong>
+                                            <div class="small">
+                                                Submit “Add to Waitlist” to hold
+                                                {% if wait_start and wait_end %}
+                                                    {{ wait_start|replace('T', ' ') }} – {{ wait_end|replace('T', ' ') }}
+                                                {% else %}
+                                                    the selected time range
+                                                {% endif %}
+                                                for the selected user.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                <button type="submit" class="btn btn-primary btn-lg" name="booking_action" value="create">
+                                    <i class="fas fa-check me-2"></i>Confirm Booking
+                                </button>
+                                {% if waitlist_mode %}
+                                <button type="submit" class="btn btn-outline-danger btn-lg" name="waitlist_action" value="add">
+                                    <i class="fas fa-user-clock me-2"></i>Add to Waitlist
+                                </button>
+                                {% endif %}
+                                <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary">
+                                    Cancel
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript for Dynamic Info Display -->
+<script>
+    function updateUserInfo() {
+        const select = document.getElementById('user_id');
+        const option = select.options[select.selectedIndex];
+        const infoDiv = document.getElementById('userInfo');
+
+        if (option.value) {
+            document.getElementById('userName').textContent = option.dataset.name;
+            document.getElementById('userEmail').textContent = option.dataset.email;
+            document.getElementById('userRole').textContent = option.dataset.role.toUpperCase();
+            infoDiv.style.display = 'block';
+        } else {
+            infoDiv.style.display = 'none';
+        }
+    }
+
+    function updateResourceInfo() {
+        const select = document.getElementById('resource_id');
+        const option = select.options[select.selectedIndex];
+        const infoDiv = document.getElementById('resourceInfo');
+        const policyText = document.getElementById('policyText');
+        const policyAlert = document.getElementById('policyAlert');
+
+        if (option.value) {
+            document.getElementById('resourceLocation').textContent = option.dataset.location;
+            document.getElementById('resourceCapacity').textContent = option.dataset.capacity + ' people';
+            document.getElementById('resourceAvailable').textContent = option.dataset.available + ' slots';
+            document.getElementById('resourceType').textContent = option.dataset.type.toUpperCase();
+            infoDiv.style.display = 'block';
+        policyAlert.classList.remove('d-none');
+            if (option.dataset.type === 'public') {
+                policyAlert.classList.remove('alert-warning');
+                policyAlert.classList.add('alert-info');
+                policyText.textContent = "This booking will be automatically approved and the user will receive a notification.";
+            } else {
+                policyAlert.classList.remove('alert-info');
+                policyAlert.classList.add('alert-warning');
+                policyText.textContent = "This booking will be submitted for approval. The resource owner will confirm it.";
+            }
+        } else {
+            infoDiv.style.display = 'none';
+        policyAlert.classList.add('d-none');
+        }
+    }
+
+    // Set minimum date/time to now
+    document.addEventListener('DOMContentLoaded', function () {
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        const dateTimeLocal = now.toISOString().slice(0, 16);
+        document.getElementById('start_time').min = dateTimeLocal;
+        document.getElementById('end_time').min = dateTimeLocal;
+
+        // Auto-update end time when start time changes
+        document.getElementById('start_time').addEventListener('change', function () {
+            const startTime = new Date(this.value);
+            startTime.setHours(startTime.getHours() + 2); // Default 2 hours
+            startTime.setMinutes(startTime.getMinutes() - startTime.getTimezoneOffset());
+            document.getElementById('end_time').value = startTime.toISOString().slice(0, 16);
+        });
+        
+        // If a resource or user is already selected (e.g., via query param) update display
+        updateUserInfo();
+        updateResourceInfo();
+
+        const slotButtons = document.querySelectorAll('.slot-pill');
+        const adminStartInput = document.getElementById('start_time');
+        const adminEndInput = document.getElementById('end_time');
+        const slotInfo = document.getElementById('slotSelectionInfo');
+        slotButtons.forEach(button => {
+            if (!button.dataset.start || !button.dataset.end || button.disabled) return;
+            button.addEventListener('click', () => {
+                slotButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                adminStartInput.value = button.dataset.start;
+                adminEndInput.value = button.dataset.end;
+                adminStartInput.dispatchEvent(new Event('change'));
+                if (slotInfo) {
+                    slotInfo.classList.remove('d-none', 'alert-danger', 'alert-secondary');
+                    const status = button.dataset.status;
+                    if (status === 'full') {
+                        slotInfo.classList.add('alert-danger');
+                        slotInfo.textContent = "This hour is full. Submit the form to add the user to the waitlist.";
+                    } else if (status === 'limited') {
+                        slotInfo.classList.add('alert-secondary');
+                        slotInfo.textContent = button.dataset.hint;
+                    } else {
+                        slotInfo.classList.add('alert-secondary');
+                        slotInfo.textContent = "Slot selected. Complete the form below to confirm.";
+                    }
+                }
+            });
+        });
+    });
+</script>
+
+<style>
+    .quick-slots {
+        background: #f8f9fa;
+        border-radius: 16px;
+        padding: 1rem 1.25rem;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .slot-day-label {
+        font-weight: 600;
+        margin-bottom: 0.35rem;
+    }
+
+    .slot-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .slot-pill {
+        border: none;
+        border-radius: 999px;
+        padding: 0.35rem 0.85rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        background: #eef2ff;
+        color: #1d1b84;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .slot-pill:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+    }
+
+    .slot-pill.slot-available:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(29, 27, 132, 0.15);
+    }
+
+    .slot-pill.slot-available.active {
+        background: #1d1b84;
+        color: #fff;
+    }
+
+    .slot-pill.slot-limited {
+        background: #fff3cd;
+        color: #664d03;
+    }
+
+    .slot-pill.slot-full {
+        background: #fde2e4;
+        color: #7a0f19;
+    }
+
+    .slot-pill.slot-downtime {
+        background: #f8d7da;
+        color: #842029;
+    }
+
+    .slot-legend .legend-pill {
+        font-size: 0.75rem;
+        padding: 0.2rem 0.6rem;
+        border-radius: 999px;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .legend-pill.slot-available {
+        background: #eef2ff;
+        color: #1d1b84;
+    }
+
+    .legend-pill.slot-limited {
+        background: #fff3cd;
+        color: #664d03;
+    }
+
+    .legend-pill.slot-full {
+        background: #fde2e4;
+        color: #7a0f19;
+    }
+
+    .legend-pill.slot-downtime {
+        background: #f8d7da;
+        color: #842029;
+    }
+</style>
+
+{% endblock %}

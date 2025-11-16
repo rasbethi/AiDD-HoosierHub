@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% block title %}Booking Detail | Hoosier Hub{% endblock %}
+
+{% block content %}
+<section class="container py-5">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="fw-bold text-danger mb-1"><i class="fas fa-file-contract me-2"></i>Booking Detail</h2>
+      <p class="text-muted mb-0">Full summary for {{ booking.resource.title }}</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('booking.dashboard') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-2"></i>Back to My Bookings
+      </a>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-7">
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+          <h5 class="fw-bold mb-3">{{ booking.resource.title }}</h5>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <p class="text-muted mb-1"><strong>Start</strong></p>
+              <p>{{ booking.start_time.strftime('%b %d, %Y %I:%M %p') }}</p>
+            </div>
+            <div class="col-md-6">
+              <p class="text-muted mb-1"><strong>End</strong></p>
+              <p>{{ booking.end_time.strftime('%b %d, %Y %I:%M %p') }}</p>
+            </div>
+          </div>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <p class="text-muted mb-1"><strong>Status</strong></p>
+              <span class="badge {% if booking.status == 'approved' %}bg-success{% elif booking.status == 'pending' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                {{ booking.status|capitalize }}
+              </span>
+            </div>
+            <div class="col-md-6">
+              <p class="text-muted mb-1"><strong>Location</strong></p>
+              <p>{{ booking.resource.location or 'On campus' }}</p>
+            </div>
+          </div>
+          {% if booking.purpose %}
+          <hr>
+          <p class="text-muted mb-1"><strong>Purpose</strong></p>
+          <p>{{ booking.purpose }}</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-5">
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+          <h5 class="fw-bold mb-3"><i class="fas fa-user me-2 text-primary"></i>Who booked it?</h5>
+          <p class="mb-1">{{ booking.user.name }}</p>
+          <p class="text-muted mb-3">{{ booking.user.email }}</p>
+          {% if booking.booked_by_admin %}
+          <div class="alert alert-info mb-0">
+            <i class="fas fa-user-shield me-2"></i>
+            Booked by admin on behalf of {{ booking.user.name }}.
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if can_cancel %}
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+          <h5 class="fw-bold mb-3 text-danger"><i class="fas fa-ban me-2"></i>Cancel this booking</h5>
+          <p class="text-muted small">Need to free the slot? Canceling will instantly open it up (or move to the next waitlisted user).</p>
+          <form method="POST" action="{{ url_for('booking.cancel_my_booking', booking_id=booking.id) }}">
+            <input type="hidden" name="return_to" value="{{ request.path }}">
+            <button type="submit" class="btn btn-outline-danger w-100">
+              <i class="fas fa-times me-2"></i>Cancel Booking
+            </button>
+          </form>
+        </div>
+      </div>
+      {% endif %}
+
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <h5 class="fw-bold mb-3"><i class="fas fa-info-circle me-2 text-primary"></i>Status History</h5>
+          <p class="text-muted mb-1">Created</p>
+          <p>{{ booking.created_at.strftime('%b %d, %Y %I:%M %p') if booking.created_at else '—' }}</p>
+          {% if booking.decision_at %}
+          <p class="text-muted mb-1">Last Decision</p>
+          <p>{{ booking.decision_at.strftime('%b %d, %Y %I:%M %p') }}</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+

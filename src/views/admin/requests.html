@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% block title %}Admin • Booking Requests{% endblock %}
+{% block content %}
+
+<section class="container py-5">
+  <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center align-items-start gap-3 mb-4">
+    <div>
+      <h1 class="fw-bold text-danger mb-1"><i class="fas fa-inbox me-2"></i>Booking Requests</h1>
+      <p class="text-muted mb-0">Review, approve, or deny user requests for admin allocation.</p>
+    </div>
+    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+    </a>
+  </div>
+
+  {% if resource_options %}
+  <form class="card border-0 shadow-sm mb-4" method="get">
+    <div class="card-body">
+      <div class="row g-3 align-items-end">
+        <div class="col-md-4">
+          <label class="form-label text-muted text-uppercase small">Status</label>
+          <select class="form-select" name="status">
+            <option value="">All statuses</option>
+            {% for status in valid_statuses %}
+            <option value="{{ status }}" {% if status_filter == status %}selected{% endif %}>{{ status|capitalize }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label text-muted text-uppercase small">Resource</label>
+          <select class="form-select" name="resource_id">
+            <option value="">All resources</option>
+            {% for resource in resource_options %}
+            <option value="{{ resource.id }}" {% if resource_filter == resource.id %}selected{% endif %}>
+              {{ resource.title }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4 d-flex gap-2">
+          <button type="submit" class="btn btn-outline-primary flex-grow-1">
+            <i class="fas fa-filter me-2"></i>Apply Filters
+          </button>
+          <a href="{{ url_for('admin.list_requests') }}" class="btn btn-outline-secondary">
+            Reset
+          </a>
+        </div>
+      </div>
+    </div>
+  </form>
+  {% endif %}
+
+  {% if requests %}
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>ID</th>
+              <th>Requester</th>
+              <th>Resource</th>
+              <th>Requested Window</th>
+              <th>Status</th>
+              <th>Submitted</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for req in requests %}
+            <tr class="{% if req.status == 'pending' %}table-warning{% endif %}">
+              <td>#{{ req.id }}</td>
+              <td>
+                <div class="fw-semibold">{{ req.requester.name }}</div>
+                <div class="small text-muted">{{ req.requester.email }}</div>
+              </td>
+              <td>
+                <div class="fw-semibold">{{ req.resource.title }}</div>
+                <div class="small text-muted">{{ req.resource.location }}</div>
+              </td>
+              <td>
+                <div>{{ req.start_time.strftime('%b %d, %Y %I:%M %p') }}</div>
+                <div class="small text-muted">to {{ req.end_time.strftime('%b %d, %Y %I:%M %p') }}</div>
+              </td>
+              <td>
+                <span class="badge
+                  {% if req.status == 'pending' %}bg-warning text-dark
+                  {% elif req.status == 'approved' %}bg-success
+                  {% elif req.status == 'denied' %}bg-danger
+                  {% else %}bg-secondary
+                  {% endif %}">
+                  {{ req.status|capitalize }}
+                </span>
+              </td>
+              <td>{{ req.created_at.strftime('%b %d, %Y %I:%M %p') }}</td>
+              <td class="text-end">
+                <a href="{{ url_for('admin.view_request', request_id=req.id) }}" class="btn btn-sm btn-outline-primary">
+                  View
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="text-center py-5">
+    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+    <p class="text-muted mb-0">No booking requests at the moment.</p>
+  </div>
+  {% endif %}
+</section>
+
+{% endblock %}
+

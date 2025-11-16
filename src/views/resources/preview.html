@@ -1,0 +1,238 @@
+{% extends 'base.html' %}
+{% block title %}Welcome | Hoosier Hub{% endblock %}
+{% block content %}
+
+<!-- Hero Section -->
+<section class="hero2 text-center text-white d-flex flex-column justify-content-center align-items-center">
+    <div class="container fade-up">
+        <h1 class="hero-title mb-3">Welcome to <span class="fw-bold text-light">Hoosier Hub</span></h1>
+        <p class="hero-subtitle">
+            Your one-stop platform to discover, book, and manage campus spaces, equipment, and resources.
+            <br>Whether you're a student or faculty, Hoosier Hub keeps your bookings organized and effortless.
+        </p>
+        <div class="mt-4">
+            <a href="{{ url_for('auth.login') }}" class="btn btn-light btn-lg me-3">
+                <i class="fas fa-sign-in-alt me-2"></i>Sign In
+            </a>
+            <a href="{{ url_for('auth.register') }}" class="btn btn-outline-light btn-lg">
+                <i class="fas fa-user-plus me-2"></i>Create Account
+            </a>
+        </div>
+    </div>
+    <div class="wave"></div>
+</section>
+
+<!-- Featured Resources -->
+<section class="featured-section text-center" id="resources">
+    <div class="container">
+        <h2 class="section-title-center">Featured Hoosier Spaces</h2>
+        <p class="text-muted mb-5">Explore some of our most popular spaces and equipment</p>
+
+        {% if resources %}
+        <div class="row g-4 justify-content-center">
+            {% for resource in resources %}
+            <div class="col-md-4 col-sm-6">
+                <div class="feature-card h-100" style="cursor: pointer;" onclick="showLoginPrompt()">
+                    <div class="card-img" style="background-image: url('{{ resource.image_url }}');"></div>
+                    <div class="card-body">
+                        <div class="mb-2">
+                            <span class="badge bg-primary">{{ resource.category }}</span>
+                            {% if resource.access_type == 'restricted' %}
+                            <span class="badge bg-warning text-dark ms-1">
+                                <i class="fas fa-lock me-1"></i>Restricted
+                            </span>
+                            {% endif %}
+                        </div>
+                        <h4 class="fw-bold">{{ resource.title }}</h4>
+                        <p class="text-muted small mb-2">
+                            <i class="fas fa-map-marker-alt me-1"></i>{{ resource.location }}
+                        </p>
+                        <p class="text-muted">{{ resource.description[:100] }}...</p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="mt-5">
+            <a href="{{ url_for('auth.login') }}" class="btn btn-primary btn-lg me-3"
+                style="padding: 15px 40px; font-size: 1.1rem;">
+                <i class="fas fa-search me-2"></i>Explore All Resources
+            </a>
+            <a href="#contact" class="btn btn-outline-danger btn-lg" style="padding: 15px 40px; font-size: 1.1rem;">
+                <i class="fas fa-envelope me-2"></i>Contact Us
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- About Section -->
+<section id="about" class="grid-section">
+    <div class="container">
+        <h2 class="section-title-center mb-3">{{ about_page.title if about_page else "About Hoosier Hub" }}</h2>
+        <p class="text-muted mb-4">
+            {% if about_page %}
+            {{ about_page.body | safe }}
+            {% else %}
+            Hoosier Hub connects IU students, staff, and administrators with campus resources in one streamlined experience.
+            {% endif %}
+        </p>
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="trend-card">
+                    <div class="icon-wrapper mb-3">
+                        <i class="fas fa-calendar-check fa-3x"></i>
+                    </div>
+                    <h4 class="trend-card-title">Easy Booking</h4>
+                    <p class="trend-card-text">
+                        Reserve study rooms, labs, and equipment in just a few clicks.
+                        View real-time availability and get instant confirmations.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="trend-card">
+                    <div class="icon-wrapper mb-3">
+                        <i class="fas fa-users fa-3x"></i>
+                    </div>
+                    <h4 class="trend-card-title">For Everyone</h4>
+                    <p class="trend-card-text">
+                        Students can book public resources instantly. Faculty and staff
+                        can manage restricted resources with approval workflows.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="trend-card">
+                    <div class="icon-wrapper mb-3">
+                        <i class="fas fa-bell fa-3x"></i>
+                    </div>
+                    <h4 class="trend-card-title">Smart Notifications</h4>
+                    <p class="trend-card-text">
+                        Get notified about booking approvals, cancellations, and
+                        waitlist availability. Never miss an important update.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Testimonials / Reviews -->
+<section id="reviews" class="testimonials text-center text-white">
+    <div class="container">
+        <h2 class="testimonials-title">What Hoosiers Are Saying</h2>
+        <div class="row g-3">
+            {% if review_samples %}
+            {% for review in review_samples %}
+            <div class="col-md-4">
+                <div class="quote rounded-4 shadow-lg bg-glass h-100">
+                    <div class="mb-2 text-warning">
+                        {% for i in range(review.rating) %}
+                        <i class="fas fa-star"></i>
+                        {% endfor %}
+                    </div>
+                    "{{ review.comment or 'Great experience using this space!' }}"<br><br>
+                    <strong>– {{ review.reviewer.name }}, {{ review.resource.title }}</strong>
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <div class="col-md-4 mx-auto">
+                <div class="quote rounded-4 shadow-lg bg-glass h-100">
+                    <p class="mb-0">No reviews yet. Book a space to become the first voice here!</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<!-- Contact Section -->
+<section id="contact" class="grid-section text-center bg-white">
+    <div class="container py-5">
+        {% if contact_html %}
+        <div class="row justify-content-center">
+            <div class="col-md-8 text-start">
+                {{ contact_html | safe }}
+            </div>
+        </div>
+        {% else %}
+        <h2 class="section-title-center mb-4">{{ contact_details.title or "Get in Touch" }}</h2>
+        <p class="text-muted mb-4 lead">
+            {{ contact_details.subtitle or "Have a question, feedback, or need support? We'd love to hear from you." }}
+        </p>
+        <div class="row justify-content-center mb-4">
+            <div class="col-md-8">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="row text-start">
+                            <div class="col-md-6 mb-3">
+                                <h5><i class="fas fa-envelope text-primary me-2"></i>Email</h5>
+                                <p class="text-muted">{{ contact_details.email }}</p>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <h5><i class="fas fa-phone text-primary me-2"></i>Phone</h5>
+                                <p class="text-muted">{{ contact_details.phone }}</p>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <h5><i class="fas fa-map-marker-alt text-primary me-2"></i>Location</h5>
+                                <p class="text-muted">{{ contact_details.location }}</p>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <h5><i class="fas fa-clock text-primary me-2"></i>Hours</h5>
+                                <p class="text-muted">{{ contact_details.hours }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <a href="{{ contact_details.cta_href or '#' }}" class="btn btn-primary btn-lg">
+            <i class="fas fa-paper-plane me-2"></i>{{ contact_details.cta_text or "Email Us" }}
+        </a>
+        {% endif %}
+    </div>
+</section>
+
+<!-- Login Prompt Modal -->
+<div class="modal fade" id="loginPromptModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 15px; border: none;">
+            <div class="modal-header border-0"
+                style="background: linear-gradient(135deg, #990000 0%, #660000 100%); color: white; border-radius: 15px 15px 0 0;">
+                <h5 class="modal-title">
+                    <i class="fas fa-lock me-2"></i>Sign In Required
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <i class="fas fa-info-circle fa-3x text-primary mb-3"></i>
+                <h5 class="mb-3">Want to see more details?</h5>
+                <p class="text-muted mb-4">
+                    Sign in or create an account to view full resource details, check availability, and make bookings!
+                </p>
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('auth.login') }}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-sign-in-alt me-2"></i>Sign In
+                    </a>
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-outline-primary btn-lg">
+                        <i class="fas fa-user-plus me-2"></i>Create Account
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript for Modal -->
+<script>
+    function showLoginPrompt() {
+        const modal = new bootstrap.Modal(document.getElementById('loginPromptModal'));
+        modal.show();
+    }
+</script>
+
+{% endblock %}

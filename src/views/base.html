@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Hoosier Hub{% endblock %}</title>
+
+  <!-- Core styles -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="{{ url_for('static', filename='css/main.css') }}" rel="stylesheet">
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</head>
+
+<body>
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-modern sticky-top shadow-sm">
+    <div class="container">
+      <a class="navbar-brand fw-bold" href="/">
+        <i class="fas fa-feather-alt me-2"></i>Hoosier Hub
+        <span class="brand-subtitle d-none d-lg-inline ms-2">Resource & Scheduling Studio</span>
+      </a>
+
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto align-items-center">
+
+          {% if current_user.is_authenticated %}
+          {% set show_owner_suite = (not current_user.is_admin()) and ((current_user.resources|length > 0) or
+          current_user.is_staff()) %}
+          <li class="nav-item">
+            <a class="nav-link" data-active-prefix="/resources,/admin/resources,/resources/preview"
+              href="{{ url_for('resource_bp.list_resources') }}">
+              <i class="fas fa-compass me-1"></i>Discover
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('resource_bp.preview_resources') }}#reviews">
+              Reviews
+            </a>
+          </li>
+          {% if not current_user.is_admin() %}
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('resource_bp.preview_resources') }}#about">
+              About
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('resource_bp.preview_resources') }}#contact">
+              Contact
+            </a>
+          </li>
+          {% endif %}
+          {% if not current_user.is_admin() %}
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="fas fa-briefcase me-1"></i>My Spaces
+              {% if owner_pending_count %}
+              <span class="badge rounded-pill bg-danger-subtle text-danger ms-2">{{ owner_pending_count }}</span>
+              {% endif %}
+            </a>
+            <ul class="dropdown-menu shadow-sm">
+              <li>
+                <a class="dropdown-item d-flex align-items-center gap-2"
+                  href="{{ url_for('resource_bp.owner_requests') }}">
+                  <i class="fas fa-inbox text-muted"></i>Owner Inbox
+                  {% if owner_pending_count %}
+                  <span class="badge bg-danger-subtle text-danger ms-auto">{{ owner_pending_count }}</span>
+                  {% endif %}
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item d-flex align-items-center gap-2"
+                  href="{{ url_for('resource_bp.owner_resources') }}">
+                  <i class="fas fa-layer-group text-muted"></i>My Resources
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item d-flex align-items-center gap-2"
+                  href="{{ url_for('resource_bp.owner_resource_bookings') }}">
+                  <i class="fas fa-tasks text-muted"></i>Resource Bookings
+                </a>
+              </li>
+            </ul>
+          </li>
+          {% endif %}
+
+          {% if current_user.is_admin() %}
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="fas fa-shield-alt me-1"></i>Admin Suite
+            </a>
+            <ul class="dropdown-menu shadow-sm">
+              <li><a class="dropdown-item" href="{{ url_for('admin.manage_resources') }}"><i
+                    class="fas fa-cubes me-2 text-muted"></i>Resources</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('admin.manage_users') }}"><i
+                    class="fas fa-users me-2 text-muted"></i>People</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('admin.manage_bookings') }}"><i
+                    class="fas fa-calendar-alt me-2 text-muted"></i>Bookings</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('admin.admin_inbox') }}"><i
+                    class="fas fa-envelope-open-text me-2 text-muted"></i>Admin Inbox</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('admin.manage_pages') }}"><i
+                    class="fas fa-file-alt me-2 text-muted"></i>Site Pages</a></li>
+            </ul>
+          </li>
+          <li class="nav-item dropdown">
+            <a class="nav-link position-relative" href="#" id="adminNotifications" role="button"
+              data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="fas fa-bell"></i>
+              {% if current_user.unread_notifications|length > 0 %}
+              <span class="badge bg-danger rounded-pill notification-dot">{{ current_user.unread_notifications|length
+                }}</span>
+              {% endif %}
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end notification-menu" aria-labelledby="adminNotifications">
+              {% if current_user.unread_notifications %}
+              {% for note in current_user.unread_notifications[:6] %}
+              <li>
+                <div class="dropdown-item small">
+                  <div class="fw-semibold">{{ note.title }}</div>
+                  <div class="text-muted">{{ note.message }}</div>
+                  <small class="text-muted">{{ note.created_at.strftime('%b %d, %I:%M %p') }}</small>
+                  <form method="POST" action="{{ url_for('admin.mark_notification_read', notification_id=note.id) }}">
+                    <button type="submit" class="btn btn-link btn-sm p-0 mt-1">Mark as read</button>
+                  </form>
+                </div>
+              </li>
+              <li>
+                <hr class="dropdown-divider">
+              </li>
+              {% endfor %}
+              <li>
+                <a class="dropdown-item text-center" href="{{ url_for('admin.email_log') }}">View all notifications</a>
+              </li>
+              {% else %}
+              <li><span class="dropdown-item text-muted">No new notifications</span></li>
+              {% endif %}
+            </ul>
+          </li>
+          {% endif %}
+
+          {% if current_user.is_admin() %}
+          <li class="nav-item d-none d-lg-block ms-lg-2">
+            <a class="btn btn-outline-crimson" href="{{ url_for('admin.dashboard') }}">
+              <i class="fas fa-gauge me-1"></i>Admin Console
+            </a>
+          </li>
+          {% endif %}
+
+          <li class="nav-item dropdown ms-3">
+            <a class="btn btn-login dropdown-toggle" href="#" id="userMenu" role="button" data-bs-toggle="dropdown">
+              <i class="fas fa-user-circle me-1"></i>{{ current_user.name }}
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+              <li><a class="dropdown-item d-flex align-items-center gap-2" href="{{ url_for('auth.profile') }}">
+                  <i class="fas fa-id-card text-muted"></i>Profile
+                </a></li>
+              <li><a class="dropdown-item d-flex align-items-center gap-2"
+                  href="{{ url_for('resource_bp.owner_requests') }}">
+                  <i class="fas fa-inbox text-muted"></i>Messages
+                </a></li>
+              {% if not current_user.is_admin() %}
+              <li><a class="dropdown-item d-flex align-items-center gap-2"
+                  href="{{ url_for('resource_bp.owner_resources') }}">
+                  <i class="fas fa-folder-open text-muted"></i>My Resources
+                </a></li>
+              <li><a class="dropdown-item d-flex align-items-center gap-2"
+                  href="{{ url_for('resource_bp.owner_resource_bookings') }}">
+                  <i class="fas fa-calendar-check text-muted"></i>Resource Bookings
+                </a></li>
+              {% endif %}
+              {% if current_user.is_admin() %}
+              <li>
+                <hr class="dropdown-divider">
+              </li>
+              <li><a class="dropdown-item d-flex align-items-center gap-2" href="{{ url_for('admin.dashboard') }}">
+                  <i class="fas fa-gauge text-muted"></i>Admin Console
+                </a></li>
+              {% endif %}
+              <li>
+                <hr class="dropdown-divider">
+              </li>
+              <li><a class="dropdown-item text-danger d-flex align-items-center gap-2"
+                  href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt"></i>Logout</a></li>
+            </ul>
+          </li>
+
+          {% else %}
+          <!-- Guest Navigation -->
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('resource_bp.preview_resources') }}#about">About</a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('resource_bp.preview_resources') }}#reviews">Reviews</a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('resource_bp.preview_resources') }}#contact">Contact</a>
+          </li>
+
+          <li class="nav-item ms-3">
+            <a class="btn btn-outline-danger me-2" href="{{ url_for('auth.login') }}">
+              <i class="fas fa-sign-in-alt me-1"></i>Login
+            </a>
+            <a class="btn btn-login" href="{{ url_for('auth.register') }}">
+              <i class="fas fa-user-plus me-1"></i>Register
+            </a>
+          </li>
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Flash Messages -->
+  <div class="flash-container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm mb-2" role="alert"
+      style="animation: slideInRight 0.4s ease;">
+      <strong>
+        {% if category == 'success' %}
+        <i class="fas fa-check-circle me-2"></i>
+        {% elif category == 'danger' %}
+        <i class="fas fa-exclamation-circle me-2"></i>
+        {% elif category == 'warning' %}
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        {% else %}
+        <i class="fas fa-info-circle me-2"></i>
+        {% endif %}
+      </strong>
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+  </div>
+
+  <!-- Main content -->
+  <main class="main-content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- FLOATING NOVA ASSISTANT -->
+  {% if current_user.is_authenticated %}
+  <div id="nova-widget" class="collapsed">
+    <div class="nova-header">
+      <span><i class="fas fa-robot me-2"></i>Nova • Hoosier Guide</span>
+      <button id="nova-close" class="btn-close btn-close-white"></button>
+    </div>
+
+    <div id="nova-chat" class="nova-chat">
+      <div class="message nova mb-2">
+        👋 Hi! I'm <b>Nova</b>, your Hoosier Hub guide.<br>
+        Ask me about spaces, waitlists, or booking help anytime.
+      </div>
+    </div>
+
+    <form id="nova-form" class="nova-form">
+      <input id="nova-input" type="text" class="form-control" placeholder="Type your question..." required>
+      <button type="submit" class="btn btn-primary">
+        <i class="fas fa-paper-plane"></i>
+      </button>
+    </form>
+  </div>
+
+  <button id="nova-toggle" class="nova-toggle-btn">
+    <i class="fas fa-comment-dots"></i>
+  </button>
+  {% endif %}
+
+  <!-- Footer -->
+  <footer class="footer-modern mt-5">
+    <div class="container text-center py-4 border-top">
+      <p class="mb-0">&copy; 2025 Hoosier Hub – Crafted with ❤️ for Indiana University.</p>
+    </div>
+  </footer>
+
+  <!-- Main JS -->
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+
+</html>
+
+</html>

@@ -1,0 +1,370 @@
+{% extends 'base.html' %}
+{% block title %}Admin Dashboard | Hoosier Hub{% endblock %}
+{% block content %}
+
+<div class="admin-container">
+    <div class="container-fluid py-4">
+        <!-- Page Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="admin-title mb-2">
+                    <i class="fas fa-shield-alt me-2"></i>Admin Dashboard
+                </h1>
+                <p class="text-muted mb-0">Manage all campus resources, users, and bookings</p>
+            </div>
+            <a href="{{ url_for('resource_bp.list_resources') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Site
+            </a>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-3">
+                <div class="stat-card stat-primary">
+                    <div class="stat-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stat-details">
+                        <h3>{{ total_users }}</h3>
+                        <p>Total Users</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card stat-success">
+                    <div class="stat-icon">
+                        <i class="fas fa-th-large"></i>
+                    </div>
+                    <div class="stat-details">
+                        <h3>{{ total_resources }}</h3>
+                        <p>Total Resources</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card stat-info">
+                    <div class="stat-icon">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <div class="stat-details">
+                        <h3>{{ total_bookings }}</h3>
+                        <p>Total Bookings</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card stat-warning">
+                    <div class="stat-icon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="stat-details">
+                        <h3>{{ pending_bookings }}</h3>
+                        <p>Pending Approvals</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLA & Utilization -->
+        <div class="row g-4 mb-4">
+            <div class="col-lg-5">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">
+                            <i class="fas fa-stopwatch me-2 text-danger"></i>Approval SLA
+                        </h5>
+                        <p class="text-muted small mb-1">Bookings pending over 24 hours</p>
+                        <div class="display-6 fw-bold text-danger">{{ overdue_bookings|length }}</div>
+                        {% if overdue_bookings %}
+                        <ul class="list-group list-group-flush mt-3">
+                            {% for booking in overdue_bookings[:5] %}
+                            <li class="list-group-item px-0 d-flex justify-content-between align-items-start">
+                                <div>
+                                    <div class="fw-semibold">{{ booking.resource.title }}</div>
+                                    <div class="small text-muted">
+                                        Requested {{ booking.created_at.strftime('%b %d, %Y %I:%M %p') }}
+                                        • {{ booking.user.name }}
+                                    </div>
+                                </div>
+                                <a class="btn btn-sm btn-outline-primary"
+                                    href="{{ url_for('admin.view_booking', booking_id=booking.id) }}">
+                                    Review
+                                </a>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <p class="text-success mt-3 mb-0">
+                            <i class="fas fa-check-circle me-2"></i>All pending requests are within the 24-hour SLA.
+                        </p>
+                        {% endif %}
+                        <hr>
+                        <p class="text-muted small mb-1">Average response time</p>
+                        <div class="fw-semibold">
+                            {% if avg_response_hours is not none %}
+                            {{ avg_response_hours }} hours
+                            {% else %}
+                            <span class="text-muted">Not enough data</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-7">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-chart-line me-2 text-success"></i>Top Resource Utilization
+                            </h5>
+                            <span class="badge bg-light text-muted">
+                                Last 7 days since {{ utilization_window_start.strftime('%b %d') }}
+                            </span>
+                        </div>
+                        {% if top_utilization %}
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Resource</th>
+                                        <th>Hours Booked</th>
+                                        <th>Bookings</th>
+                                        <th>Utilization</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for entry in top_utilization %}
+                                    <tr>
+                                        <td>
+                                            <div class="fw-semibold">{{ entry.resource.title }}</div>
+                                            <div class="small text-muted">{{ entry.resource.location }}</div>
+                                        </td>
+                                        <td>{{ entry.hours }}</td>
+                                        <td>{{ entry.count }}</td>
+                                        <td>
+                                            <div class="progress" style="height: 8px;">
+                                                <div class="progress-bar bg-success" role="progressbar"
+                                                    data-width="{{ entry.utilization_pct }}"
+                                                    aria-valuenow="{{ entry.utilization_pct }}" aria-valuemin="0"
+                                                    aria-valuemax="100"></div>
+                                            </div>
+                                            <small class="text-muted">{{ entry.utilization_pct }}%</small>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <p class="text-muted mb-0">No approved bookings in the last 7 days.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Auto Summary Reporter -->
+        <div class="row g-4 mb-4">
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3">
+                            <div>
+                                <h5 class="card-title mb-1">
+                                    <i class="fas fa-robot me-2 text-primary"></i>Auto Summary Reporter
+                                </h5>
+                                <p class="text-muted mb-0">Top resources in the past 7 days (since {{
+                                    summary_window_start.strftime('%b %d') }})</p>
+                            </div>
+                        </div>
+                        {% if weekly_summary %}
+                        <ol class="list-group list-group-numbered list-group-flush">
+                            {% for item in weekly_summary %}
+                            <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                                <div class="fw-semibold">{{ item.title }}</div>
+                                <span class="badge bg-primary rounded-pill">{{ item.count }} bookings</span>
+                            </li>
+                            {% endfor %}
+                        </ol>
+                        {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-chart-line fa-2x mb-2"></i>
+                            <p class="mb-0">No booking activity recorded in the last week.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Role & Department Analytics -->
+        <div class="row g-4 mb-4">
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">
+                            <i class="fas fa-user-tag me-2 text-info"></i>Bookings by Role
+                        </h5>
+                        {% if role_usage %}
+                        <ul class="list-group list-group-flush">
+                            {% for role, count in role_usage %}
+                            <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                                <span class="text-capitalize">{{ role or 'Unknown' }}</span>
+                                <span class="badge bg-info-subtle text-info">{{ count }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <p class="text-muted mb-0">No booking data yet.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">
+                            <i class="fas fa-th-large me-2 text-primary"></i>Resource Types
+                        </h5>
+                        {% if resource_type_usage %}
+                        <div class="list-group list-group-flush">
+                            {% for category, count in resource_type_usage %}
+                            <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                                <span>{{ category or 'Uncategorized' }}</span>
+                                <span class="badge bg-primary-subtle text-primary">{{ count }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p class="text-muted mb-0">No resource usage recorded yet.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">
+                            <i class="fas fa-building me-2 text-secondary"></i>Usage by Department
+                        </h5>
+                        {% if department_usage %}
+                        <div class="list-group list-group-flush">
+                            {% for dept, count in department_usage %}
+                            <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                                <span>{{ dept or 'Unspecified' }}</span>
+                                <span class="badge bg-secondary-subtle text-secondary">{{ count }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p class="text-muted mb-0">No departmental booking data yet.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Management Tabs -->
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">
+                            <i class="fas fa-calendar-alt me-2 text-primary"></i>Recent Bookings
+                        </h5>
+                        <div class="list-group list-group-flush">
+                            {% for booking in recent_bookings %}
+                            <div class="list-group-item px-0">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1">{{ booking.resource.title }}</h6>
+                                        <small class="text-muted">{{ booking.user.name }}</small>
+                                    </div>
+                                    <span
+                                        class="badge bg-{{ 'success' if booking.status == 'approved' else 'warning' }}">
+                                        {{ booking.status }}
+                                    </span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <a href="{{ url_for('admin.manage_bookings') }}"
+                            class="dashboard-link-btn text-danger w-100 mt-3">
+                            View All Bookings
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">
+                            <i class="fas fa-th-large me-2 text-success"></i>Recent Resources
+                        </h5>
+                        <div class="list-group list-group-flush">
+                            {% for resource in recent_resources %}
+                            <div class="list-group-item px-0">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1">{{ resource.title }}</h6>
+                                        <small class="text-muted">{{ resource.category }}</small>
+                                    </div>
+                                    <span
+                                        class="badge bg-{{ 'success' if resource.access_type == 'public' else 'warning' }}">
+                                        {{ resource.access_type }}
+                                    </span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <a href="{{ url_for('admin.manage_resources') }}"
+                            class="dashboard-link-btn text-success w-100 mt-3">
+                            Manage Resources
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">
+                            <i class="fas fa-users me-2 text-info"></i>Recent Users
+                        </h5>
+                        <div class="list-group list-group-flush">
+                            {% for user in recent_users %}
+                            <div class="list-group-item px-0">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1">{{ user.name }}</h6>
+                                        <small class="text-muted">{{ user.email }}</small>
+                                    </div>
+                                    <span class="badge bg-primary">{{ user.role }}</span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <a href="{{ url_for('admin.manage_users') }}" class="dashboard-link-btn text-info w-100 mt-3">
+                            Manage Users
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.progress-bar[data-width]').forEach(function (bar) {
+            var value = parseFloat(bar.dataset.width || '0');
+            value = Math.max(0, Math.min(value, 100));
+            bar.style.width = value + '%';
+        });
+    });
+</script>
+{% endblock %}

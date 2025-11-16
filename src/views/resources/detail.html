@@ -1,0 +1,885 @@
+{% extends 'base.html' %}
+{% block title %}{{ resource.title }} | Hoosier Hub{% endblock %}
+{% block content %}
+
+<section class="resource-detail-hero">
+  <div class="container">
+    <div class="row g-4 align-items-center">
+      <div class="col-lg-6">
+        <div class="resource-detail-image" style="background-image: url('{{ resource.image_url }}');"></div>
+      </div>
+      <div class="col-lg-6">
+        <span class="badge bg-primary mb-3">{{ resource.category or 'General' }}</span>
+        <h1 class="resource-detail-title">{{ resource.title }}</h1>
+        <p class="resource-detail-meta">
+          <i class="fas fa-map-marker-alt me-2"></i>{{ resource.location or 'IU Campus' }}
+          <span class="mx-2">•</span>
+          <i class="fas fa-users me-2"></i>Capacity {{ resource.capacity }}
+          <span class="mx-2">•</span>
+          {% if resource.access_type == 'restricted' %}
+          <span class="text-warning"><i class="fas fa-lock me-1"></i>Restricted</span>
+          {% else %}
+          <span class="text-success"><i class="fas fa-unlock me-1"></i>Public</span>
+          {% endif %}
+        </p>
+
+        <p class="resource-detail-description">{{ resource.description }}</p>
+
+        <div class="d-flex align-items-center flex-wrap gap-3 mt-3">
+          <div class="availability-chip">
+            <i class="fas fa-check-circle me-2"></i>{{ resource.get_available_slots() }} slots available
+          </div>
+
+          {% if resource.average_rating() > 0 %}
+          <div class="rating-chip">
+            <i class="fas fa-star text-warning me-1"></i>{{ resource.average_rating() }} / 5
+          </div>
+          {% endif %}
+        </div>
+
+        <div class="d-flex gap-3 mt-4 flex-wrap">
+          <a href="{{ url_for('resource_bp.list_resources') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Resources
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="resource-detail-content">
+  <div class="container">
+    <div class="row g-5">
+      <div class="col-lg-7">
+        <div class="card shadow-sm border-0 mb-4">
+          <div class="card-body">
+            <h3 class="card-title h5 mb-3"><i class="fas fa-info-circle me-2 text-primary"></i>Resource Details</h3>
+            <dl class="row">
+              <dt class="col-sm-4">Owner</dt>
+              <dd class="col-sm-8">{{ resource.owner.name }}</dd>
+
+              <dt class="col-sm-4">Category</dt>
+              <dd class="col-sm-8">{{ resource.category or 'Not specified' }}</dd>
+
+              <dt class="col-sm-4">Location</dt>
+              <dd class="col-sm-8">{{ resource.location or 'IU Campus' }}</dd>
+
+              <dt class="col-sm-4">Capacity</dt>
+              <dd class="col-sm-8">{{ resource.capacity }}</dd>
+
+              <dt class="col-sm-4">Access Type</dt>
+              <dd class="col-sm-8 text-capitalize">{{ resource.access_type }}</dd>
+            </dl>
+
+            <h4 class="h6 mt-4">Description</h4>
+            <p class="mb-0">{{ resource.description }}</p>
+          </div>
+        </div>
+
+        <div class="card shadow-sm border-0">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h3 class="card-title h5 mb-0"><i class="fas fa-comments me-2 text-primary"></i>Reviews</h3>
+              <span class="badge bg-secondary">{{ reviews|length }} review{{ 's' if reviews|length != 1 }}</span>
+            </div>
+
+            {% if reviews %}
+            <div class="list-group list-group-flush">
+              {% for review in reviews %}
+              <div class="list-group-item px-0">
+                <div class="d-flex justify-content-between">
+                  <div>
+                    <strong>{{ review.reviewer.name }}</strong>
+                    <div class="text-warning small">
+                      {% for i in range(review.rating) %}
+                      <i class="fas fa-star"></i>
+                      {% endfor %}
+                    </div>
+                  </div>
+                  <small class="text-muted">{{ review.created_at.strftime('%b %d, %Y') }}</small>
+                </div>
+                <p class="mb-0 mt-2">{{ review.comment }}</p>
+              </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center text-muted py-4">
+              <i class="far fa-smile-beam fa-2x mb-2"></i>
+              <p class="mb-0">No reviews yet. Be the first to book and share feedback!</p>
+            </div>
+            {% endif %}
+
+            {% if current_user.is_authenticated and current_user.role in ['student','staff'] and current_user.id !=
+            resource.owner_id %}
+            <hr class="my-4">
+            {% if can_review %}
+            <div class="mt-3">
+              <h5 class="h6 fw-semibold text-uppercase text-muted mb-3">
+                <i class="fas fa-pen me-2 text-danger"></i>Share your review
+              </h5>
+              <form method="POST" action="{{ url_for('resource_bp.submit_review', resource_id=resource.id) }}"
+                class="row g-3">
+                <div class="col-md-4">
+                  <label class="form-label small fw-semibold">Rating</label>
+                  <select name="rating" class="form-select" required>
+                    <option value="">Select</option>
+                    {% for star in range(1,6) %}
+                    <option value="{{ star }}">{{ star }} ★</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-12">
+                  <label class="form-label small fw-semibold">Comments (optional)</label>
+                  <textarea name="comment" class="form-control" rows="3"
+                    placeholder="What should other Hoosiers know?"></textarea>
+                </div>
+                <div class="col-12 text-end">
+                  <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-paper-plane me-2"></i>Submit Review
+                  </button>
+                </div>
+              </form>
+            </div>
+            {% elif has_completed_booking and existing_review %}
+            <div class="alert alert-secondary mt-3">
+              <strong>Thanks!</strong> You've already shared your thoughts on this resource.
+            </div>
+            {% else %}
+            <div class="alert alert-light border mt-3">
+              <strong>Complete a booking first.</strong> Reviews unlock after you've used the space.
+            </div>
+            {% endif %}
+            {% endif %}
+          </div>
+        </div>
+
+        {% if can_message_owner %}
+        <div class="card shadow-sm border-0 mt-4">
+          <div class="card-body">
+            <h3 class="card-title h5 mb-3"><i class="fas fa-paper-plane me-2 text-primary"></i>Message the Owner</h3>
+            <p class="text-muted small">Have a question before booking? Send {{ resource.owner.name }} a quick note.</p>
+
+            <div class="message-thread mb-4">
+              {% if conversation and conversation_messages %}
+              {% for msg in conversation_messages %}
+              <div class="mb-3">
+                <div class="d-flex justify-content-between">
+                  <strong>{% if msg.sender_id == current_user.id %}You{% else %}{{ msg.sender.name }}{% endif
+                    %}</strong>
+                  <small class="text-muted">{{ msg.created_at.strftime('%b %d, %Y %I:%M %p') }}</small>
+                </div>
+                <div class="mt-1 p-3 rounded bg-light">{{ msg.content }}</div>
+              </div>
+              {% endfor %}
+              {% else %}
+              <p class="text-muted fst-italic">No messages yet. Start the conversation below.</p>
+              {% endif %}
+            </div>
+
+            <form method="POST" action="{{ url_for('resource_bp.message_owner', resource_id=resource.id) }}">
+              <input type="hidden" name="return_to" value="{{ request.path }}">
+              <div class="mb-3">
+                <label class="form-label">Your message</label>
+                <textarea name="content" class="form-control" rows="3"
+                  placeholder="Ask about availability, policies, or special requests." required></textarea>
+              </div>
+              <button type="submit" class="btn btn-outline-primary">
+                <i class="fas fa-paper-plane me-2"></i>Send Message
+              </button>
+            </form>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="col-lg-5" id="booking-card">
+        <div class="card shadow-sm border-0 mb-4">
+          <div class="card-body">
+            <h3 class="card-title h5 mb-3"><i class="fas fa-calendar-plus me-2 text-primary"></i>Book this Resource</h3>
+            {% if is_owner %}
+            <div class="alert alert-info d-flex align-items-center gap-2">
+              <i class="fas fa-user-shield fa-lg"></i>
+              <div>
+                <strong>You manage this resource.</strong><br>
+                Review pending requests below and approve or reject them.
+              </div>
+            </div>
+            {% if pending_owner_bookings %}
+            <div class="pending-owner-list">
+              {% for booking in pending_owner_bookings %}
+              <div class="border rounded-3 p-3 mb-3 shadow-sm">
+                <div class="d-flex justify-content-between flex-wrap gap-2">
+                  <div>
+                    <div class="fw-semibold">{{ booking.user.name }}</div>
+                    <small class="text-muted">{{ booking.user.email }}</small>
+                  </div>
+                  <span class="badge bg-warning text-dark align-self-start">Pending</span>
+                </div>
+                <p class="mb-2 mt-3">
+                  <i class="fas fa-clock me-2 text-primary"></i>
+                  {{ booking.start_time.strftime('%b %d, %Y %I:%M %p') }}
+                  –
+                  {{ booking.end_time.strftime('%b %d, %Y %I:%M %p') }}
+                </p>
+                {% if booking.purpose %}
+                <p class="mb-3 text-muted"><strong>Purpose:</strong> {{ booking.purpose }}</p>
+                {% endif %}
+                <div class="row g-2">
+                  <div class="col-md-4">
+                    <form method="POST"
+                      action="{{ url_for('resource_bp.owner_approve_booking', booking_id=booking.id) }}">
+                      <input type="hidden" name="redirect_to" value="{{ request.path }}">
+                      <button type="submit" class="btn btn-success btn-sm w-100">
+                        <i class="fas fa-check me-1"></i>Approve
+                      </button>
+                    </form>
+                  </div>
+                  <div class="col-md-8">
+                    <form method="POST"
+                      action="{{ url_for('resource_bp.owner_reject_booking', booking_id=booking.id) }}"
+                      class="d-flex flex-column flex-md-row gap-2">
+                      <input type="hidden" name="redirect_to" value="{{ request.path }}">
+                      <input type="text" name="reason" class="form-control form-control-sm"
+                        placeholder="Reason (optional)">
+                      <button type="submit" class="btn btn-outline-danger btn-sm">
+                        <i class="fas fa-times me-1"></i>Reject
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center text-muted py-4">
+              <i class="fas fa-sparkles mb-2"></i>
+              <p class="mb-0">No pending approvals right now.</p>
+            </div>
+            {% endif %}
+            <div class="owner-self-book border rounded-3 p-3 bg-light-subtle mb-2">
+              <p class="small text-muted mb-3 d-flex align-items-center gap-2">
+                <i class="fas fa-user-check text-danger"></i>
+                <span>Need to reserve this resource for yourself? Pick a quick slot or enter a custom time below. Owner
+                  bookings auto-approve.</span>
+              </p>
+              <form class="custom-slot-picker mb-3" method="get"
+                action="{{ url_for('resource_bp.resource_detail', resource_id=resource.id) }}#booking-card">
+                <label class="form-label small fw-semibold">Plan ahead</label>
+                <div class="input-group input-group-sm">
+                  <input type="date" class="form-control" min="{{ today_iso }}" value="{{ selected_date_iso }}"
+                    name="date">
+                  <button type="submit" class="btn btn-outline-primary">
+                    <i class="fas fa-calendar-alt me-1"></i>Show slots
+                  </button>
+                </div>
+                <small class="text-muted">Pick any future date to refresh the slot picker with that day and the next two
+                  days.</small>
+              </form>
+              {% if slot_days %}
+              <div class="quick-slots mb-3" data-slot-group="owner">
+                <div
+                  class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center align-items-start gap-2 mb-2">
+                  <div>
+                    <strong>Pick a quick slot</strong>
+                    <p class="text-muted small mb-0">Select an available hour to auto-fill the form.</p>
+                  </div>
+                  <div class="slot-legend d-flex flex-wrap gap-2">
+                    <span class="legend-pill slot-available">Available</span>
+                    <span class="legend-pill slot-limited">Limited</span>
+                    <span class="legend-pill slot-full">Full</span>
+                    <span class="legend-pill slot-downtime">Downtime</span>
+                  </div>
+                </div>
+                {% for day in slot_days %}
+                <div class="slot-day mb-3">
+                  <div class="slot-day-label">{{ day.date_label }}</div>
+                  <div class="slot-pills">
+                    {% for slot in day.slots %}
+                    <button type="button" class="slot-pill slot-{{ slot.status }}" data-start="{{ slot.start_iso }}"
+                      data-end="{{ slot.end_iso }}" data-status="{{ slot.status }}" data-hint="{{ slot.hint }}"
+                      data-group="owner" data-start-target="#ownerBookingStart" data-end-target="#ownerBookingEnd"
+                      data-info-target="#ownerSlotSelectionInfo" title="{{ slot.hint }}" {% if slot.status=='downtime'
+                      %}disabled{% endif %}>
+                      {{ slot.label }}
+                    </button>
+                    {% endfor %}
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+              {% endif %}
+              <div id="ownerSlotSelectionInfo" class="alert alert-secondary d-none"></div>
+              <form method="POST" action="{{ url_for('resource_bp.self_book_resource', resource_id=resource.id) }}">
+                <div class="mb-2">
+                  <label class="form-label small fw-semibold">Start Time</label>
+                  <input type="datetime-local" name="start_time" class="form-control form-control-sm"
+                    id="ownerBookingStart" required>
+                </div>
+                <div class="mb-2">
+                  <label class="form-label small fw-semibold">End Time</label>
+                  <input type="datetime-local" name="end_time" class="form-control form-control-sm" id="ownerBookingEnd"
+                    required>
+                </div>
+                <div class="mb-2">
+                  <label class="form-label small fw-semibold">Purpose (optional)</label>
+                  <input type="text" name="purpose" class="form-control form-control-sm"
+                    placeholder="e.g., Personal prep session">
+                </div>
+                <button type="submit" class="btn btn-danger btn-sm w-100">
+                  <i class="fas fa-check-circle me-1"></i>Instant book (auto-approved)
+                </button>
+              </form>
+            </div>
+            {% elif current_user.is_admin() %}
+            <div class="alert alert-secondary">
+              <strong>Admins allocate resources from the dashboard.</strong><br>
+              Use the button below to open the <em>Book for User</em> form with this resource pre-selected.
+            </div>
+            <a class="btn btn-primary w-100"
+              href="{{ url_for('admin.book_for_user', resource_id=resource.id, return_to=request.path) }}">
+              <i class="fas fa-user-plus me-2"></i>Book this Resource for a User
+            </a>
+            {% else %}
+            {% if request.args.get('waitlist') %}
+            <div class="alert alert-warning">
+              <strong>All slots are full for the selected time.</strong><br>
+              You can join the waitlist and we'll notify you when a spot opens up.
+              <form method="POST" action="{{ url_for('resource_bp.join_waitlist', resource_id=resource.id) }}"
+                class="mt-3">
+                {% if resource.access_type == 'public' %}
+                <input type="hidden" name="start_time" value="{{ request.args.get('wait_start') }}" required>
+                <input type="hidden" name="end_time" value="{{ request.args.get('wait_end') }}" required>
+                <input type="hidden" name="purpose" value="{{ request.args.get('wait_purpose') }}">
+                <button type="submit" class="btn btn-outline-danger w-100">
+                  <i class="fas fa-user-clock me-2"></i>Join Waitlist
+                </button>
+                {% else %}
+                <input type="datetime-local" name="start_time" class="form-control mb-2"
+                  value="{{ request.args.get('wait_start') }}" required>
+                <input type="datetime-local" name="end_time" class="form-control mb-2"
+                  value="{{ request.args.get('wait_end') }}" required>
+                <textarea class="form-control mb-2" name="purpose" rows="2"
+                  placeholder="Purpose (optional)">{{ request.args.get('wait_purpose') }}</textarea>
+                <div class="d-flex gap-2">
+                  <button type="submit" class="btn btn-outline-danger flex-grow-1">
+                    <i class="fas fa-user-clock me-2"></i>Join Waitlist
+                  </button>
+                  <a class="btn btn-outline-secondary" href="{{ url_for('resource_bp.list_resources') }}">
+                    Cancel
+                  </a>
+                </div>
+                {% endif %}
+              </form>
+            </div>
+            {% endif %}
+            {% if waitlist_entries %}
+            <div class="alert alert-info d-flex flex-column gap-2">
+              <div>
+                <strong>You’re on the waitlist for this resource.</strong>
+                <p class="mb-1 small">We’ll notify you if a slot opens up. In the meantime, you can monitor status from
+                  <a href="{{ url_for('booking.dashboard') }}">My Bookings</a>.
+                </p>
+              </div>
+              <ul class="list-unstyled mb-0 small">
+                {% for entry in waitlist_entries %}
+                <li class="d-flex justify-content-between flex-wrap">
+                  <span>
+                    {% if entry.start_time %}
+                    {{ entry.start_time.strftime('%b %d, %Y %I:%M %p') }} –
+                    {% if entry.end_time %}{{ entry.end_time.strftime('%I:%M %p') }}{% endif %}
+                    {% else %}
+                    <em>No specific time recorded</em>
+                    {% endif %}
+                  </span>
+                  <span class="badge bg-primary-subtle text-primary fw-semibold">
+                    {{ (entry.status or 'waiting')|capitalize }} · Position {{ entry.position or '—' }}
+                  </span>
+                </li>
+                {% endfor %}
+              </ul>
+            </div>
+            {% endif %}
+            {% if slot_days %}
+            <div class="quick-slots mb-4">
+              <div
+                class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center align-items-start gap-2 mb-2">
+                <div>
+                  <strong>Pick a quick slot</strong>
+                  <p class="text-muted small mb-0">Select an available hour to auto-fill the booking form.</p>
+                </div>
+                <div class="slot-legend d-flex flex-wrap gap-2">
+                  <span class="legend-pill slot-available">Available</span>
+                  <span class="legend-pill slot-limited">Limited</span>
+                  <span class="legend-pill slot-full">Full</span>
+                  <span class="legend-pill slot-downtime">Downtime</span>
+                </div>
+              </div>
+              <form class="custom-slot-picker mb-3" method="get"
+                action="{{ url_for('resource_bp.resource_detail', resource_id=resource.id) }}#booking-card">
+                <label class="form-label small fw-semibold">Need another date?</label>
+                <div class="input-group input-group-sm">
+                  <input type="date" class="form-control" min="{{ today_iso }}" value="{{ selected_date_iso }}"
+                    name="date">
+                  <button type="submit" class="btn btn-outline-primary">
+                    <i class="fas fa-calendar-alt me-1"></i>Show slots
+                  </button>
+                </div>
+                <small class="text-muted">Choose any upcoming day to reload the next three days of slots starting from
+                  that date.</small>
+              </form>
+              {% for day in slot_days %}
+              <div class="slot-day mb-3">
+                <div class="slot-day-label">{{ day.date_label }}</div>
+                <div class="slot-pills">
+                  {% for slot in day.slots %}
+                  <button type="button" class="slot-pill slot-{{ slot.status }}" data-start="{{ slot.start_iso }}"
+                    data-end="{{ slot.end_iso }}" data-status="{{ slot.status }}" data-hint="{{ slot.hint }}"
+                    data-group="user" data-start-target="#bookingStart" data-end-target="#bookingEnd"
+                    data-info-target="#slotSelectionInfo" title="{{ slot.hint }}" {% if slot.status=='downtime'
+                    %}disabled{% endif %}>
+                    {{ slot.label }}
+                  </button>
+                  {% endfor %}
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            {% endif %}
+            <div id="slotSelectionInfo" class="alert alert-secondary d-none"></div>
+            <div id="waitlistQuickAction"
+              class="alert alert-warning d-none flex-column flex-md-row align-items-md-center gap-3">
+              <div class="flex-grow-1">
+                <strong>Selected slot is full.</strong>
+                <div class="small mb-2 mb-md-0" id="waitlistQuickTime">Join the waitlist to be notified of openings.
+                </div>
+              </div>
+              <form id="waitlistQuickForm" method="POST"
+                action="{{ url_for('resource_bp.join_waitlist', resource_id=resource.id) }}"
+                class="d-flex flex-column flex-md-row gap-2 w-100 w-md-auto">
+                <input type="hidden" name="start_time" id="waitlistStartInput">
+                <input type="hidden" name="end_time" id="waitlistEndInput">
+                <input type="hidden" name="purpose" id="waitlistPurposeInput">
+                <button type="submit" class="btn btn-outline-light text-danger bg-white w-100 w-md-auto">
+                  <i class="fas fa-user-clock me-2"></i>Join Waitlist
+                </button>
+              </form>
+            </div>
+            <form method="POST" action="{{ url_for('resource_bp.book_resource', resource_id=resource.id) }}"
+              class="resource-booking-form" id="primaryBookingForm">
+              <div class="mb-3">
+                <label class="form-label">Start Time</label>
+                <input type="datetime-local" name="start_time" class="form-control" id="bookingStart" required>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">End Time</label>
+                <input type="datetime-local" name="end_time" class="form-control" id="bookingEnd" required>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">Purpose</label>
+                <textarea class="form-control" name="purpose" rows="3" id="bookingPurpose"
+                  placeholder="Briefly describe how you'll use this resource"></textarea>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">Repeat</label>
+                <div class="input-group">
+                  <select class="form-select" name="recurrence">
+                    <option value="none">Do not repeat</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                  </select>
+                  <input type="number" name="recurrence_count" class="form-control" min="1" max="10" value="1">
+                </div>
+                <small class="text-muted">Repeats include this booking. Maximum of 10 occurrences.</small>
+              </div>
+
+              <button type="submit" class="btn btn-primary w-100">
+                <i class="fas fa-paper-plane me-2"></i>Submit Booking Request
+              </button>
+            </form>
+
+            {% if resource.get_available_slots() <= 0 %} <div class="alert alert-warning mt-3 mb-0">
+              <i class="fas fa-info-circle me-2"></i>All slots are full. You can still book to join the waitlist.
+          </div>
+          {% endif %}
+          <div class="mt-4">
+            <h4 class="h6 text-uppercase text-muted mb-2">Need admin assistance?</h4>
+            {% if latest_request %}
+            {% if latest_request.status == 'pending' %}
+            <div class="alert alert-info mb-2">
+              <strong>Request pending.</strong><br>
+              Requested for {{ latest_request.start_time.strftime('%b %d, %Y %I:%M %p') }} –
+              {{ latest_request.end_time.strftime('%b %d, %Y %I:%M %p') }}.
+              {% if latest_request.note %}
+              <div class="mt-2 small text-muted">Note: {{ latest_request.note }}</div>
+              {% endif %}
+            </div>
+            <p class="text-muted small mb-0">An admin has been notified. You'll receive an update once it's reviewed.
+            </p>
+            {% elif latest_request.status == 'approved' %}
+            <div class="alert alert-success mb-2">
+              <strong>Request approved.</strong><br>
+              Scheduled from {{ latest_request.start_time.strftime('%b %d, %Y %I:%M %p') }} to
+              {{ latest_request.end_time.strftime('%b %d, %Y %I:%M %p') }}.
+              {% if latest_request.decision_note %}
+              <div class="mt-2 small text-muted">{{ latest_request.decision_note }}</div>
+              {% endif %}
+            </div>
+            {% elif latest_request.status == 'denied' %}
+            <div class="alert alert-warning mb-2">
+              <strong>Request denied.</strong>
+              {% if latest_request.decision_note %}
+              <div class="mt-2 small text-muted">{{ latest_request.decision_note }}</div>
+              {% else %}
+              <div class="mt-2 small text-muted">Please adjust your request details and try again.</div>
+              {% endif %}
+            </div>
+            <button type="button" class="btn btn-outline-primary w-100" data-bs-toggle="modal"
+              data-bs-target="#requestAdminModal">
+              <i class="fas fa-user-plus me-2"></i>Submit New Admin Request
+            </button>
+            {% else %}
+            <div class="alert alert-secondary mb-2">
+              <strong>Request closed.</strong> You can submit a new request if you still need admin assistance.
+            </div>
+            <button type="button" class="btn btn-outline-primary w-100" data-bs-toggle="modal"
+              data-bs-target="#requestAdminModal">
+              <i class="fas fa-user-plus me-2"></i>Submit New Admin Request
+            </button>
+            {% endif %}
+
+            {% if latest_request_messages %}
+            <div class="card shadow-sm border-0 mt-3 mb-3">
+              <div class="card-body">
+                <h5 class="card-title h6 mb-3"><i class="fas fa-comments me-2 text-primary"></i>Conversation with
+                  Resource Owner</h5>
+                <div class="list-group">
+                  {% for message in latest_request_messages %}
+                  <div class="list-group-item border-0 border-start border-4 mb-2 rounded-3 shadow-sm">
+                    <div class="d-flex justify-content-between">
+                      <strong>
+                        {% if message.sender_id == current_user.id %}
+                        You
+                        {% elif message.sender_id == latest_request.resource.owner_id %}
+                        {{ latest_request.resource.owner.name }} (Owner)
+                        {% else %}
+                        {{ message.sender.name }}
+                        {% endif %}
+                      </strong>
+                      <small class="text-muted">{{ message.created_at.strftime('%b %d, %Y %I:%M %p') }}</small>
+                    </div>
+                    <p class="mb-0 mt-2">{{ message.content }}</p>
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+            {% endif %}
+
+            {% if latest_request.status != 'closed' %}
+            <form method="POST" action="{{ url_for('resource_bp.send_request_message', request_id=latest_request.id) }}"
+              class="mt-3">
+              <div class="mb-3">
+                <label class="form-label">Send a message to the resource owner</label>
+                <textarea class="form-control" name="content" rows="3"
+                  placeholder="Share additional context or ask a question..." required></textarea>
+              </div>
+              <button type="submit" class="btn btn-primary w-100">
+                <i class="fas fa-paper-plane me-2"></i>Send Message
+              </button>
+            </form>
+            {% endif %}
+            {% else %}
+            <p class="text-muted small">Need an admin to allocate this resource on your behalf? Submit a quick request
+              and we'll notify you once it's handled.</p>
+            <button type="button" class="btn btn-outline-primary w-100" data-bs-toggle="modal"
+              data-bs-target="#requestAdminModal">
+              <i class="fas fa-user-plus me-2"></i>Request Admin Booking
+            </button>
+            {% endif %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="card shadow-sm border-0">
+        <div class="card-body">
+          <h3 class="card-title h5 mb-3"><i class="fas fa-bolt me-2 text-primary"></i>Why book with Hoosier Hub?</h3>
+          <ul class="list-unstyled resource-benefits">
+            <li><i class="fas fa-check-circle text-success me-2"></i>Instant notifications on booking status</li>
+            <li><i class="fas fa-check-circle text-success me-2"></i>Easy access to past bookings</li>
+            <li><i class="fas fa-check-circle text-success me-2"></i>Priority support for admin-approved resources</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+</section>
+
+{% if not current_user.is_admin() %}
+<div class="modal fade" id="requestAdminModal" tabindex="-1" aria-labelledby="requestAdminModalLabel"
+  aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('resource_bp.request_admin_allocation', resource_id=resource.id) }}">
+        <div class="modal-header">
+          <h5 class="modal-title" id="requestAdminModalLabel">
+            <i class="fas fa-user-plus me-2 text-primary"></i>Request Admin Booking
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Preferred Start Time</label>
+            <input type="datetime-local" id="requestStartTime" name="start_time" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Preferred End Time</label>
+            <input type="datetime-local" id="requestEndTime" name="end_time" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Purpose</label>
+            <textarea class="form-control" name="purpose" rows="3"
+              placeholder="Briefly describe why you need this resource"></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Message to Admin (optional)</label>
+            <textarea class="form-control" name="note" rows="3"
+              placeholder="Share any additional context for the admin"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-paper-plane me-2"></i>Send Request
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<style>
+  .quick-slots {
+    background: #f8f9fa;
+    border-radius: 16px;
+    padding: 1rem 1.25rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+
+  .slot-day-label {
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+  }
+
+  .slot-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .slot-pill {
+    border: none;
+    border-radius: 999px;
+    padding: 0.35rem 0.85rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: #eef2ff;
+    color: #1d1b84;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .slot-pill:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .slot-pill.slot-available:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(29, 27, 132, 0.15);
+  }
+
+  .slot-pill.slot-available.active {
+    background: #1d1b84;
+    color: #fff;
+  }
+
+  .slot-pill.slot-limited {
+    background: #fff3cd;
+    color: #664d03;
+  }
+
+  .slot-pill.slot-full {
+    background: #fde2e4;
+    color: #7a0f19;
+  }
+
+  .slot-pill.slot-downtime {
+    background: #f8d7da;
+    color: #842029;
+  }
+
+  .slot-legend .legend-pill {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+
+  .legend-pill.slot-available {
+    background: #eef2ff;
+    color: #1d1b84;
+  }
+
+  .legend-pill.slot-limited {
+    background: #fff3cd;
+    color: #664d03;
+  }
+
+  .legend-pill.slot-full {
+    background: #fde2e4;
+    color: #7a0f19;
+  }
+
+  .legend-pill.slot-downtime {
+    background: #f8d7da;
+    color: #842029;
+  }
+</style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const bookingCard = document.getElementById('booking-card');
+    if (bookingCard && window.location.hash === '#booking-card') {
+      bookingCard.scrollIntoView({ behavior: 'instant', block: 'start' });
+    }
+
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    const isoNow = now.toISOString().slice(0, 16);
+
+    const startInput = document.getElementById('requestStartTime');
+    const endInput = document.getElementById('requestEndTime');
+
+    if (startInput) {
+      startInput.min = isoNow;
+      startInput.addEventListener('change', function () {
+        const start = new Date(this.value);
+        if (!isNaN(start.getTime()) && endInput) {
+          const adjusted = new Date(start.getTime());
+          adjusted.setHours(adjusted.getHours() + 2);
+          adjusted.setMinutes(adjusted.getMinutes() - adjusted.getTimezoneOffset());
+          endInput.value = adjusted.toISOString().slice(0, 16);
+          endInput.min = this.value;
+        }
+      });
+    }
+
+    if (endInput) {
+      endInput.min = isoNow;
+    }
+
+    const slotButtons = document.querySelectorAll('.slot-pill[data-start-target][data-end-target]');
+    const waitlistAction = document.getElementById('waitlistQuickAction');
+    const waitlistTime = document.getElementById('waitlistQuickTime');
+    const waitlistStartInput = document.getElementById('waitlistStartInput');
+    const waitlistEndInput = document.getElementById('waitlistEndInput');
+    const waitlistPurposeInput = document.getElementById('waitlistPurposeInput');
+    const bookingPurposeField = document.getElementById('bookingPurpose');
+    const waitlistForm = document.getElementById('waitlistQuickForm');
+
+    const formatRangeLabel = (startIso, endIso) => {
+      try {
+        const start = new Date(startIso);
+        const end = new Date(endIso);
+        const dayFormatter = new Intl.DateTimeFormat(undefined, {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+        });
+        const timeFormatter = new Intl.DateTimeFormat(undefined, {
+          hour: 'numeric',
+          minute: '2-digit',
+        });
+        return `${dayFormatter.format(start)} · ${timeFormatter.format(start)} – ${timeFormatter.format(end)}`;
+      } catch (err) {
+        return '';
+      }
+    };
+
+    slotButtons.forEach((button) => {
+      if (!button.dataset.start || !button.dataset.end || button.disabled) {
+        return;
+      }
+
+      const startField = document.querySelector(button.dataset.startTarget);
+      const endField = document.querySelector(button.dataset.endTarget);
+      if (!startField || !endField) {
+        return;
+      }
+
+      const infoField = button.dataset.infoTarget
+        ? document.querySelector(button.dataset.infoTarget)
+        : null;
+      const groupName = button.dataset.group || 'default';
+
+      button.addEventListener('click', () => {
+        document
+          .querySelectorAll(`.slot-pill[data-group="${groupName}"]`)
+          .forEach((btn) => btn.classList.remove('active'));
+
+        button.classList.add('active');
+        startField.value = button.dataset.start;
+        endField.value = button.dataset.end;
+        startField.dispatchEvent(new Event('change'));
+
+        if (infoField) {
+          infoField.classList.remove('d-none', 'alert-danger', 'alert-secondary');
+          const status = button.dataset.status;
+          if (status === 'full') {
+            infoField.classList.add('alert-danger');
+            infoField.textContent = "This slot is full. Submit the form to join the waitlist for this time.";
+          } else if (status === 'limited') {
+            infoField.classList.add('alert-secondary');
+            infoField.textContent = button.dataset.hint || "Limited availability — act quickly.";
+          } else {
+            infoField.classList.add('alert-secondary');
+            infoField.textContent = button.dataset.hint || "Slot selected. Complete the form below to confirm.";
+          }
+        }
+
+        if (waitlistAction && waitlistStartInput && waitlistEndInput) {
+          if (button.dataset.status === 'full') {
+            waitlistAction.classList.remove('d-none');
+            waitlistStartInput.value = button.dataset.start;
+            waitlistEndInput.value = button.dataset.end;
+            if (waitlistTime) {
+              waitlistTime.textContent = formatRangeLabel(button.dataset.start, button.dataset.end);
+            }
+          } else {
+            waitlistAction.classList.add('d-none');
+            waitlistStartInput.value = '';
+            waitlistEndInput.value = '';
+          }
+        }
+
+        startField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    });
+
+    if (waitlistForm && waitlistPurposeInput) {
+      waitlistForm.addEventListener('submit', () => {
+        if (bookingPurposeField) {
+          waitlistPurposeInput.value = bookingPurposeField.value || '';
+        }
+      });
+    }
+
+  });
+</script>
+{% endif %}
+
+{% endblock %}

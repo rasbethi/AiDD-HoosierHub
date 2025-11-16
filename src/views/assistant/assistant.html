@@ -1,0 +1,32 @@
+<div id="nova-widget" class="nova-widget collapsed">
+    <div class="nova-header">
+        <span class="nova-title">🤖 Nova</span>
+        <button id="nova-close" class="btn btn-sm btn-light">&times;</button>
+    </div>
+
+    <div id="nova-chat" class="nova-chat">
+        <div class="message nova">
+            👋 Hi! I'm <b>Nova</b>, your Hoosier Hub guide.<br>
+            Ask me about study rooms, labs, or booking help.
+        </div>
+    </div>
+
+    <form id="nova-form" class="nova-form">
+        <input id="nova-input" type="text" class="form-control" placeholder="Type your question...">
+        <button class="btn btn-primary">Send</button>
+    </form>
+    <div id="nova-quick-replies" class="nova-quick-replies"></div>
+</div>
+
+<button id="nova-toggle" class="nova-toggle-btn">
+    <i class="fas fa-comment-dots"></i>
+</button>
+
+<script>
+    const toggle = document.getElementById("nova-toggle");
+    const widget = document.getElementById("nova-widget");
+    const close = document.getElementById("nova-close");
+
+    toggle.addEventListener("click", () => widget.classList.toggle("collapsed"));
+    close.addEventListener("click", () => widget.classList.add("collapsed"));
+</script>

@@ -1,0 +1,264 @@
+{% extends 'base.html' %}
+{% block title %}{{ resource.title }} • Schedule{% endblock %}
+{% block content %}
+
+<section class="container py-5">
+  <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center align-items-start gap-3 mb-4">
+    <div>
+      <h1 class="fw-bold text-danger mb-1">
+        <i class="fas fa-calendar-alt me-2"></i>{{ resource.title }} Schedule
+      </h1>
+      <p class="text-muted mb-0">Manage bookings and view availability for this resource.</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <a href="{{ url_for('admin.manage_bookings') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-2"></i>Back to Bookings
+      </a>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-7">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body p-4">
+          <h2 class="h5 mb-3"><i class="fas fa-clock me-2 text-primary"></i>Upcoming Bookings</h2>
+
+          {% if bookings %}
+          <div class="timeline">
+            {% for booking in bookings %}
+            <div class="timeline-item">
+              <div class="timeline-point {% if booking.status|lower == 'approved' %}bg-success{% elif booking.status|lower == 'pending' %}bg-warning{% else %}bg-secondary{% endif %}"></div>
+              <div class="timeline-content shadow-sm">
+                <div class="d-flex justify-content-between align-items-start">
+                  <div>
+                    <h3 class="h6 mb-1">{{ booking.user.name }}</h3>
+                    <p class="text-muted small mb-2">{{ booking.user.email }}</p>
+                  </div>
+                  <span class="badge
+                    {% if booking.status|lower == 'approved' %}
+                      bg-success
+                    {% elif booking.status|lower == 'pending' %}
+                      bg-warning text-dark
+                    {% else %}
+                      bg-secondary
+                    {% endif %}
+                  ">
+                    {{ booking.status|capitalize }}
+                  </span>
+                </div>
+                <p class="mb-1">
+                  <i class="fas fa-calendar-day me-2 text-danger"></i>
+                  {{ booking.start_time.strftime('%b %d, %Y') }}
+                </p>
+                <p class="mb-2">
+                  <i class="fas fa-clock me-2 text-danger"></i>
+                  {{ booking.start_time.strftime('%I:%M %p') }} – {{ booking.end_time.strftime('%I:%M %p') }}
+                </p>
+                {% if booking.purpose %}
+                <p class="mb-0 text-muted small">
+                  <i class="fas fa-comment-dots me-1"></i>{{ booking.purpose }}
+                </p>
+                {% endif %}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="text-center py-4">
+            <i class="fas fa-calendar-plus fa-2x text-muted mb-2"></i>
+            <p class="text-muted mb-0">No bookings scheduled yet. Be the first to add one.</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-5">
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+          <h2 class="h5 mb-3"><i class="fas fa-user-plus me-2 text-primary"></i>Book for a User</h2>
+          <form method="POST" action="{{ url_for('admin.book_for_user', resource_id=resource.id, return_to=request.path) }}">
+            <div class="mb-3">
+              <label class="form-label">Select User</label>
+              <select class="form-select" name="user_id" required>
+                <option value="">-- Choose a user --</option>
+                {% for user in users %}
+                <option value="{{ user.id }}">{{ user.name }} ({{ user.email }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Start Time</label>
+              <input type="datetime-local" class="form-control" name="start_time" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">End Time</label>
+              <input type="datetime-local" class="form-control" name="end_time" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Purpose / Notes (optional)</label>
+              <textarea class="form-control" name="purpose" rows="3"></textarea>
+            </div>
+            <input type="hidden" name="resource_id" value="{{ resource.id }}">
+            <button type="submit" class="btn btn-primary w-100">
+              <i class="fas fa-check me-2"></i>Confirm Booking
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+          <h2 class="h5 mb-3"><i class="fas fa-tools me-2 text-primary"></i>Schedule Downtime</h2>
+          <form method="POST" action="{{ url_for('admin.create_downtime_block', resource_id=resource.id) }}">
+            <div class="mb-3">
+              <label class="form-label">Start Time</label>
+              <input type="datetime-local" class="form-control" name="downtime_start" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">End Time</label>
+              <input type="datetime-local" class="form-control" name="downtime_end" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Reason (optional)</label>
+              <textarea class="form-control" name="downtime_reason" rows="2" placeholder="e.g., Maintenance, private event"></textarea>
+            </div>
+            <button type="submit" class="btn btn-outline-primary w-100">
+              <i class="fas fa-plus me-2"></i>Add Downtime Block
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm">
+        <div class="card-body p-4">
+          <h2 class="h5 mb-3"><i class="fas fa-user-clock me-2 text-primary"></i>Waitlist</h2>
+
+          {% if waitlist_entries %}
+          <ul class="list-group list-group-flush">
+            {% for entry in waitlist_entries %}
+            <li class="list-group-item px-0">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <h6 class="mb-1">{{ entry.user.name }}</h6>
+                  <p class="text-muted small mb-1">{{ entry.user.email }}</p>
+                  <span class="badge bg-secondary">Position #{{ entry.position }}</span>
+                  <span class="badge bg-light text-muted">{{ entry.created_at.strftime('%b %d, %Y %I:%M %p') }}</span>
+                </div>
+                <form method="POST" action="{{ url_for('admin.remove_waitlist_entry', entry_id=entry.id) }}">
+                  <input type="hidden" name="return_to" value="{{ request.path }}">
+                  <button type="submit" class="btn btn-sm btn-outline-danger">
+                    Remove
+                  </button>
+                </form>
+              </div>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <div class="text-center text-muted py-3">
+            <i class="fas fa-check-circle fa-2x mb-2"></i>
+            <p class="mb-0">No one is waiting for this resource.</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm mt-4">
+        <div class="card-body p-4">
+          <h2 class="h5 mb-3"><i class="fas fa-calendar-times me-2 text-primary"></i>Downtime Blocks</h2>
+          {% if downtimes %}
+          <ul class="list-group list-group-flush">
+            {% for block in downtimes %}
+            <li class="list-group-item px-0">
+              <div class="d-flex justify-content-between align-items-start gap-3">
+                <div>
+                  <div class="fw-semibold">{{ block.start_time.strftime('%b %d, %Y %I:%M %p') }}</div>
+                  <div class="text-muted small">to {{ block.end_time.strftime('%b %d, %Y %I:%M %p') }}</div>
+                  {% if block.reason %}
+                  <div class="mt-1 small"><i class="fas fa-info-circle me-1 text-muted"></i>{{ block.reason }}</div>
+                  {% endif %}
+                </div>
+                <form method="POST" action="{{ url_for('admin.delete_downtime_block', block_id=block.id) }}">
+                  <input type="hidden" name="return_to" value="{{ request.path }}">
+                  <button type="submit" class="btn btn-sm btn-outline-danger">
+                    <i class="fas fa-times me-1"></i>Remove
+                  </button>
+                </form>
+              </div>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="text-muted mb-0">No downtime scheduled for this resource.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    const isoNow = now.toISOString().slice(0, 16);
+
+    const downtimeStart = document.querySelector('input[name="downtime_start"]');
+    const downtimeEnd = document.querySelector('input[name="downtime_end"]');
+
+    if (downtimeStart) {
+      downtimeStart.min = isoNow;
+      downtimeStart.addEventListener('change', function () {
+        if (downtimeEnd) {
+          downtimeEnd.min = this.value;
+        }
+      });
+    }
+
+    if (downtimeEnd) {
+      downtimeEnd.min = isoNow;
+    }
+  });
+</script>
+<style>
+  .timeline {
+    position: relative;
+    padding-left: 1.5rem;
+  }
+
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 12px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #e9ecef;
+  }
+
+  .timeline-item {
+    position: relative;
+    margin-bottom: 1.5rem;
+  }
+
+  .timeline-point {
+    position: absolute;
+    left: -2px;
+    top: 0.5rem;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+
+  .timeline-content {
+    background: #fff;
+    border-radius: 1rem;
+    padding: 1rem 1.25rem;
+  }
+</style>
+{% endblock %}
+
